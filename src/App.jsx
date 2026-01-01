@@ -12,6 +12,7 @@ import ContextMenu from "./components/ContextMenu";
 import RecentFolders from "./components/RecentFolders";
 import MetadataPanel from "./components/MetadataPanel";
 import HeaderBar from "./components/HeaderBar";
+import TitleBar from "./components/TitleBar";
 import FiltersPopover from "./components/FiltersPopover";
 import DebugSummary from "./components/DebugSummary";
 import AboutDialog from "./components/AboutDialog";
@@ -1394,13 +1395,14 @@ function App() {
 
   return (
     <div className="app" onContextMenu={handleBackgroundContextMenu}>
+      <TitleBar />
       {!settingsLoaded ? (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            height: "100vh",
+            flex: 1,
             color: "#888",
           }}
         >

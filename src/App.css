@@ -9,6 +9,24 @@
   --color-accent: #F59E0B;
   --metadata-dock-height: clamp(220px, 30vh, 360px);
   --metadata-dock-collapsed-inset: 2.75rem;
+  --title-bar-height: 38px;
+}
+
+/* ===== macOS Title Bar ===== */
+.title-bar {
+  height: var(--title-bar-height);
+  background: var(--color-surface);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.title-bar__drag-region {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  -webkit-app-region: drag;
 }
 
 html,
@@ -37,6 +55,14 @@ body {
   top: 0;
   z-index: 100;
   overflow-anchor: none;
+  -webkit-app-region: no-drag;
+}
+
+.header button,
+.header input,
+.header select,
+.header label {
+  -webkit-app-region: no-drag;
 }
 
 .nav-left {
