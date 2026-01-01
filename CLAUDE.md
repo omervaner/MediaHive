@@ -29,7 +29,56 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 
 ---
 
-## Current Work: Settings Expansion ✅ COMPLETE
+## Current Work: Duplicate Finder ✅ COMPLETE
+
+### Plan
+
+**Backend (3 files):**
+
+1. **`main/perceptualHash.js`** (new)
+   - `computeDHash(imagePath)` - Uses sharp to resize to 9×8 grayscale, compare adjacent pixels, return 64-bit hex hash
+   - `hammingDistance(hash1, hash2)` - Count differing bits
+   - `findDuplicateGroups(hashes, threshold=5)` - Group files by similarity
+
+2. **`main/database.js`** (modify)
+   - Add `phash TEXT` column to files table
+   - Store/retrieve hash during indexFile
+
+3. **`main.js`** (add handlers)
+   - `duplicates:find` - Takes fingerprints array, returns groups of duplicates
+   - `duplicates:trash` - Takes array of file paths, moves all to trash
+
+**Frontend (2 files):**
+
+4. **`HeaderBar.jsx`** (modify)
+   - Add "Find Duplicates" button (only enabled when folder loaded)
+
+5. **`App.jsx`** (modify)
+   - `duplicateMode` state (boolean)
+   - `duplicateGroups` state (array of arrays)
+   - When duplicate mode on: filter displayed files to only duplicates
+   - Show "Remove All Duplicates" button + "Exit" button in header
+   - Remove All: keeps first of each group, trashes rest, exits mode
+
+**Flow:**
+1. User clicks "Find Duplicates"
+2. Backend computes/fetches hashes for current folder's files
+3. Backend groups by Hamming distance ≤5
+4. Frontend filters to show only duplicates
+5. User reviews, clicks "Remove All Duplicates"
+6. Confirmation dialog → trash all but first in each group
+7. Return to normal view
+
+### Progress
+- [x] Step 1: perceptualHash.js module
+- [x] Step 2: database.js phash column
+- [x] Step 3: IPC handlers in main.js + preload.js
+- [x] Step 4: HeaderBar button
+- [x] Step 5: App.jsx duplicate mode
+
+---
+
+## Previous Work: Settings Expansion ✅ COMPLETE
 
 ### Completed
 - Clean menu-style Settings dialog with four navigation items

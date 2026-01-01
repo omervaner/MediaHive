@@ -120,6 +120,13 @@ const ImageIcon = (props) => (
   </Icon>
 );
 
+const CopyIcon = (props) => (
+  <Icon {...props}>
+    <rect x="9" y="9" width="13" height="13" rx="2" />
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+  </Icon>
+);
+
 const VideoIcon = (props) => (
   <Icon {...props}>
     <polygon points="23 7 16 12 23 17 23 7" />
@@ -161,6 +168,11 @@ export default function HeaderBar({
   imageCount = 0,
   onCaptionClick,
   onSettingsClick,
+  duplicateMode = false,
+  duplicateCount = 0,
+  onDuplicatesClick,
+  onDuplicatesExit,
+  onDuplicatesRemoveAll,
 }) {
   const isElectron = !!window.electronAPI?.isElectron;
 
@@ -399,6 +411,41 @@ export default function HeaderBar({
               <BrainIcon />
               <span className="filters-button-label">Caption</span>
             </button>
+          )}
+
+          {isElectron && !duplicateMode && (
+            <button
+              onClick={onDuplicatesClick}
+              disabled={isLoadingFolder || !hasOpenFolder}
+              className="toggle-button"
+              title="Find duplicate images"
+              type="button"
+            >
+              <CopyIcon />
+              <span className="filters-button-label">Duplicates</span>
+            </button>
+          )}
+
+          {duplicateMode && (
+            <>
+              <button
+                onClick={onDuplicatesRemoveAll}
+                disabled={duplicateCount === 0}
+                className="toggle-button duplicate-remove-btn"
+                title={`Remove ${duplicateCount} duplicate${duplicateCount !== 1 ? 's' : ''}`}
+                type="button"
+              >
+                Remove All ({duplicateCount})
+              </button>
+              <button
+                onClick={onDuplicatesExit}
+                className="toggle-button"
+                title="Exit duplicate finder"
+                type="button"
+              >
+                Exit
+              </button>
+            </>
           )}
 
           {isElectron && (

@@ -268,6 +268,13 @@ function createMetadataStore(db) {
       if (!/duplicate column/i.test(error?.message || '')) throw error;
     }
   }
+  if (!columns.has('phash')) {
+    try {
+      db.exec('ALTER TABLE files ADD COLUMN phash TEXT;');
+    } catch (error) {
+      if (!/duplicate column/i.test(error?.message || '')) throw error;
+    }
+  }
 
   const fileUpsert = db.prepare(`
     INSERT INTO files (fingerprint, last_known_path, size, created_ms, updated_at, width, height)
@@ -296,11 +303,19 @@ function createMetadataStore(db) {
   `);
 
   const fileSelect = db.prepare(
-    'SELECT width, height FROM files WHERE fingerprint = ?;'
+    'SELECT width, height, phash FROM files WHERE fingerprint = ?;'
   );
 
   const setDimensionsStmt = db.prepare(
     'UPDATE files SET width = ?, height = ? WHERE fingerprint = ?;'
+  );
+
+  const setPhashStmt = db.prepare(
+    'UPDATE files SET phash = ? WHERE fingerprint = ?;'
+  );
+
+  const getPhashesStmt = db.prepare(
+    'SELECT fingerprint, phash, last_known_path FROM files WHERE fingerprint IN (SELECT value FROM json_each(?));'
   );
 
   const tagsForFingerprint = db.prepare(`
@@ -492,6 +507,21 @@ function createMetadataStore(db) {
     setDimensionsStmt.run(width, height, fingerprint);
   }
 
+  function setPhash(fingerprint, phash) {
+    if (!fingerprint) return;
+    setPhashStmt.run(phash || null, fingerprint);
+  }
+
+  function getPhashes(fingerprints) {
+    if (!fingerprints || fingerprints.length === 0) return [];
+    const rows = getPhashesStmt.all(JSON.stringify(fingerprints));
+    return rows.map(row => ({
+      fingerprint: row.fingerprint,
+      phash: row.phash,
+      fullPath: row.last_known_path,
+    }));
+  }
+
   function listTags() {
     return tagUsage.all();
   }
@@ -603,6 +633,8 @@ function createMetadataStore(db) {
     setCaption,
     getDimensions,
     setDimensions,
+    setPhash,
+    getPhashes,
   };
 }
 

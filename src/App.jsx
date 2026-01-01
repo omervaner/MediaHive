@@ -167,6 +167,11 @@ function App() {
   const [isBatchCaptionOpen, setBatchCaptionOpen] = useState(false);
   const [moveDialogState, setMoveDialogState] = useState({ open: false, mode: "copy" });
 
+  // Duplicate finder state
+  const [duplicateMode, setDuplicateMode] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState([]); // Array of arrays of {fingerprint, fullPath}
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+
   // Video collection state
   const [actualPlaying, setActualPlaying] = useState(new Set());
   const [visibleVideos, setVisibleVideos] = useState(new Set());
@@ -326,17 +331,34 @@ function App() {
     addRecentFolder,
   });
 
-  // Filter videos by media type (images/videos/all)
+  // Compute duplicate fingerprints for filtering (needs to be before mediaFilteredVideos)
+  const duplicateFingerprints = useMemo(() => {
+    if (!duplicateMode || duplicateGroups.length === 0) return null;
+    const set = new Set();
+    duplicateGroups.forEach(group => {
+      group.forEach(item => set.add(item.fingerprint));
+    });
+    return set;
+  }, [duplicateMode, duplicateGroups]);
+
+  // Filter videos by media type (images/videos/all) and duplicate mode
   const mediaFilteredVideos = useMemo(() => {
-    if (mediaFilter === "all") return videos;
+    let result = videos;
+    
+    // Apply media type filter
     if (mediaFilter === "images") {
-      return videos.filter((v) => v.mediaType === "image");
+      result = result.filter((v) => v.mediaType === "image");
+    } else if (mediaFilter === "videos") {
+      result = result.filter((v) => v.mediaType !== "image");
     }
-    if (mediaFilter === "videos") {
-      return videos.filter((v) => v.mediaType !== "image");
+    
+    // Apply duplicate filter when in duplicate mode
+    if (duplicateFingerprints) {
+      result = result.filter((v) => v.fingerprint && duplicateFingerprints.has(v.fingerprint));
     }
-    return videos;
-  }, [videos, mediaFilter]);
+    
+    return result;
+  }, [videos, mediaFilter, duplicateFingerprints]);
 
   const {
     filters,
@@ -1281,6 +1303,90 @@ function App() {
     []
   );
 
+  // Duplicate finder handlers
+  const handleDuplicatesFind = useCallback(async () => {
+    if (!videos.length) return;
+    
+    setDuplicateLoading(true);
+    try {
+      // Get fingerprints for images only (videos can't be hashed this way)
+      const imageFingerprints = videos
+        .filter(v => v.mediaType === "image" && v.fingerprint)
+        .map(v => v.fingerprint);
+      
+      if (imageFingerprints.length < 2) {
+        notify("Need at least 2 images to find duplicates", "info");
+        return;
+      }
+      
+      const result = await window.electronAPI?.duplicates?.find(imageFingerprints);
+      
+      if (result?.success && result.groups?.length > 0) {
+        setDuplicateGroups(result.groups);
+        setDuplicateMode(true);
+        notify(`Found ${result.groups.length} duplicate group${result.groups.length !== 1 ? "s" : ""}`, "success");
+      } else {
+        notify("No duplicates found", "info");
+      }
+    } catch (err) {
+      console.error("Duplicate find failed:", err);
+      notify("Failed to find duplicates", "error");
+    } finally {
+      setDuplicateLoading(false);
+    }
+  }, [videos, notify]);
+
+  const handleDuplicatesExit = useCallback(() => {
+    setDuplicateMode(false);
+    setDuplicateGroups([]);
+    selection.clear();
+  }, [selection]);
+
+  const handleDuplicatesRemoveAll = useCallback(async () => {
+    if (duplicateGroups.length === 0) return;
+    
+    // Collect all duplicates (all but first in each group)
+    const toTrash = [];
+    duplicateGroups.forEach(group => {
+      // Keep first, trash rest
+      for (let i = 1; i < group.length; i++) {
+        toTrash.push(group[i].fullPath);
+      }
+    });
+    
+    if (toTrash.length === 0) return;
+    
+    const confirmed = window.confirm(
+      `Move ${toTrash.length} duplicate${toTrash.length !== 1 ? "s" : ""} to trash?\n\nThis keeps the first image from each group and removes the rest.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const result = await window.electronAPI?.bulkMoveToTrash?.(toTrash);
+      if (result?.success && result.moved?.length > 0) {
+        // Remove trashed files from videos (only those actually moved)
+        const trashedSet = new Set(result.moved);
+        setVideos(prev => prev.filter(v => !trashedSet.has(v.fullPath)));
+        notify(`Removed ${result.moved.length} duplicates`, "success");
+        handleDuplicatesExit();
+      } else if (result?.failed?.length > 0) {
+        notify(`Failed to remove ${result.failed.length} files`, "error");
+      } else {
+        notify("Failed to remove duplicates", "error");
+      }
+    } catch (err) {
+      console.error("Remove duplicates failed:", err);
+      notify("Failed to remove duplicates", "error");
+    }
+  }, [duplicateGroups, setVideos, notify, handleDuplicatesExit]);
+
+  // Count of duplicates to remove (all but first in each group)
+  const duplicateRemoveCount = useMemo(() => {
+    if (!duplicateMode) return 0;
+    return duplicateGroups.reduce((sum, group) => sum + Math.max(0, group.length - 1), 0);
+  }, [duplicateMode, duplicateGroups]);
+
   const reshuffleRandom = useCallback(() => {
     const seed = Date.now();
     setRandomSeed(seed);
@@ -1485,6 +1591,11 @@ function App() {
               }
             }}
             onSettingsClick={() => setSettingsOpen(true)}
+            duplicateMode={duplicateMode}
+            duplicateCount={duplicateRemoveCount}
+            onDuplicatesClick={handleDuplicatesFind}
+            onDuplicatesExit={handleDuplicatesExit}
+            onDuplicatesRemoveAll={handleDuplicatesRemoveAll}
           />
 
           {isFiltersOpen && (

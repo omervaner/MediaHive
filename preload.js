@@ -296,6 +296,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clearDatabase: async () => ipcRenderer.invoke("data:clear-database"),
     openFolder: async () => ipcRenderer.invoke("data:open-folder"),
   },
+
+  duplicates: {
+    find: async (fingerprints) => ipcRenderer.invoke("duplicates:find", fingerprints),
+  },
 });
 
 contextBridge.exposeInMainWorld('appMem', {
