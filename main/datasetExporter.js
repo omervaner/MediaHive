@@ -94,10 +94,16 @@ async function exportDataset(options) {
         const captionPath = destPath.replace(/\.[^.]+$/, ".txt");
         let captionContent = "";
 
-        if (captionSource === "tags" && Array.isArray(file.tags)) {
+        if (captionSource === "ai" && file.aiCaption) {
+          // Use AI-generated caption
+          captionContent = file.aiCaption;
+        } else if (captionSource === "tags" && Array.isArray(file.tags) && file.tags.length > 0) {
+          // Use manual tags as comma-separated list
+          captionContent = file.tags.join(", ");
+        } else if (captionSource === "ai" && Array.isArray(file.tags) && file.tags.length > 0) {
+          // Fallback: AI selected but no caption, use tags if available
           captionContent = file.tags.join(", ");
         }
-        // AI captions would go here in the future
 
         await fs.promises.writeFile(captionPath, captionContent, "utf-8");
       }

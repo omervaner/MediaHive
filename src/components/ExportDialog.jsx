@@ -17,6 +17,7 @@ export default function ExportDialog({ open, onClose, files = [] }) {
   const [renameEnabled, setRenameEnabled] = useState(true);
   const [renamePrefix, setRenamePrefix] = useState("dataset_");
   const [fileHandling, setFileHandling] = useState("copy");
+  const [captionSource, setCaptionSource] = useState("ai");
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [result, setResult] = useState(null);
@@ -24,6 +25,10 @@ export default function ExportDialog({ open, onClose, files = [] }) {
   // Filter to images only
   const imageFiles = files.filter((f) => f.mediaType === "image");
   const imageCount = imageFiles.length;
+
+  // Count images with captions/tags
+  const withAiCaption = imageFiles.filter((f) => f.aiCaption).length;
+  const withTags = imageFiles.filter((f) => f.tags?.length > 0).length;
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -90,7 +95,7 @@ export default function ExportDialog({ open, onClose, files = [] }) {
         files: imageFiles,
         destination,
         includeCaptions,
-        captionSource: "tags",
+        captionSource,
         resize: resizeEnabled ? { shortEdge: resizeValue } : null,
         rename: renameEnabled ? { prefix: renamePrefix } : null,
         fileHandling,
@@ -108,6 +113,7 @@ export default function ExportDialog({ open, onClose, files = [] }) {
     imageCount,
     imageFiles,
     includeCaptions,
+    captionSource,
     resizeEnabled,
     resizeValue,
     renameEnabled,
@@ -217,9 +223,39 @@ export default function ExportDialog({ open, onClose, files = [] }) {
                   />
                   Include caption files (.txt)
                 </label>
-                <span className="export-dialog__hint">
-                  Creates a .txt file with tags for each image
-                </span>
+                {includeCaptions && (
+                  <div className="export-dialog__caption-options">
+                    <div className="export-dialog__radio-group" style={{ marginLeft: "1.5rem", marginTop: "0.5rem" }}>
+                      <label className="export-dialog__radio">
+                        <input
+                          type="radio"
+                          name="captionSource"
+                          value="ai"
+                          checked={captionSource === "ai"}
+                          onChange={(e) => setCaptionSource(e.target.value)}
+                          disabled={isExporting}
+                        />
+                        AI captions ({withAiCaption} images)
+                      </label>
+                      <label className="export-dialog__radio">
+                        <input
+                          type="radio"
+                          name="captionSource"
+                          value="tags"
+                          checked={captionSource === "tags"}
+                          onChange={(e) => setCaptionSource(e.target.value)}
+                          disabled={isExporting}
+                        />
+                        Tags ({withTags} images)
+                      </label>
+                    </div>
+                    <span className="export-dialog__hint">
+                      {captionSource === "ai" 
+                        ? "Uses AI-generated descriptions (falls back to tags if no caption)"
+                        : "Uses comma-separated tags"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="export-dialog__field">

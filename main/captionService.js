@@ -38,7 +38,7 @@ async function generateCaption(imagePath, options = {}) {
   const {
     model,
     endpoint = DEFAULT_ENDPOINT,
-    prompt = "Describe this image in detail for AI training. Focus on the subject, style, composition, lighting, colors, and any notable elements. Be concise but thorough.",
+    prompt = "Write a brief natural caption for this image in 1-2 sentences. Describe the main subject, style, and setting. No headers, no bullet points, no markdown formatting - just plain text.",
     requestId,
     timeout,
   } = options;

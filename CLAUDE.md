@@ -49,7 +49,7 @@ See `docs/CHANGELOG.md` for detailed history.
 | 3 | Caption service (single image) | ✅ Done | `main/captionService.js`, `MetadataPanel.jsx` |
 | 4 | Batch captioning UI | ✅ Done | `BatchCaptionDialog.jsx`, `HeaderBar.jsx` |
 | 5 | Caption display & editing | ✅ Done | Details panel, `SettingsDialog.jsx` |
-| 6 | Export integration | Pending | Connect captions to Dataset Export |
+| 6 | Export integration | ✅ Done | Connect captions to Dataset Export |
 
 ### Model Options (4 tiers)
 
@@ -74,6 +74,8 @@ See `docs/CHANGELOG.md` for detailed history.
 - Fixed skip logic to check `tags` (current state) instead of `aiTags` (historical)
 - Added "Clear All" button in Tags section to remove all tags from selected files
 - Rebranded color scheme: green (#51cf66) → amber (#F59E0B) throughout the app
+- Added macOS title bar with drag region for traffic light spacing
+- Export integration: choose between AI captions or tags for .txt files
 
 ---
 
