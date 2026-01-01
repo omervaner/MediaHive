@@ -42,6 +42,16 @@ export const useFullScreenModal = (videos, layoutMode, gridRef) => {
     }
   }, [fullScreenIndex, videos]);
 
+  // Close fullscreen if the current video was removed from the list
+  useEffect(() => {
+    if (!fullScreenVideo) return;
+    const stillExists = videos.some((v) => v.id === fullScreenVideo.id);
+    if (!stillExists) {
+      setFullScreenVideo(null);
+      setFullScreenIndex(-1);
+    }
+  }, [videos, fullScreenVideo]);
+
   // Handle keyboard navigation
   useEffect(() => {
     if (!fullScreenVideo) return;

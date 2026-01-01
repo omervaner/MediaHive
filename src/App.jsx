@@ -20,6 +20,7 @@ import ProfilePromptDialog from "./components/ProfilePromptDialog";
 import ExportDialog from "./components/ExportDialog";
 import OllamaSetupDialog from "./components/OllamaSetupDialog";
 import SettingsDialog from "./components/SettingsDialog";
+import BatchCaptionDialog from "./components/BatchCaptionDialog";
 
 import { useFullScreenModal } from "./hooks/useFullScreenModal";
 import { useVideoCollection } from "./hooks/video-collection";
@@ -160,6 +161,7 @@ function App() {
   const [isOllamaSetupOpen, setOllamaSetupOpen] = useState(false);
   const [ollamaModel, setOllamaModel] = useState(null);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isBatchCaptionOpen, setBatchCaptionOpen] = useState(false);
 
   // Video collection state
   const [actualPlaying, setActualPlaying] = useState(new Set());
@@ -1447,7 +1449,13 @@ function App() {
             onMediaFilterChange={handleMediaFilterChange}
             onExportClick={() => setExportDialogOpen(true)}
             imageCount={filteredImageCount}
-            onCaptionClick={() => setOllamaSetupOpen(true)}
+            onCaptionClick={() => {
+              if (ollamaModel) {
+                setBatchCaptionOpen(true);
+              } else {
+                setOllamaSetupOpen(true);
+              }
+            }}
             onSettingsClick={() => setSettingsOpen(true)}
           />
 
@@ -1499,6 +1507,46 @@ function App() {
             onChangeModel={() => {
               setSettingsOpen(false);
               setOllamaSetupOpen(true);
+            }}
+          />
+
+          <BatchCaptionDialog
+            open={isBatchCaptionOpen}
+            onClose={() => setBatchCaptionOpen(false)}
+            files={filteredVideos}
+            model={ollamaModel}
+            onComplete={(result) => {
+              // Update all processed files with their new tags
+              if (result?.results?.length > 0) {
+                setVideos((prev) => {
+                  const updatesMap = new Map();
+                  result.results.forEach((r) => {
+                    if (r.success && r.tags?.length > 0) {
+                      updatesMap.set(r.path, r.tags);
+                    }
+                  });
+                  return prev.map((f) => {
+                    const newTags = updatesMap.get(f.fullPath);
+                    if (!newTags) return f;
+                    const existingTags = Array.isArray(f.tags) ? f.tags : [];
+                    const mergedTags = [...new Set([...existingTags, ...newTags])];
+                    return { ...f, tags: mergedTags, aiTags: newTags };
+                  });
+                });
+              }
+            }}
+            onUpdateFile={(filePath, updates) => {
+              // Update the file in the video list with caption/tags
+              setVideos((prev) =>
+                prev.map((f) => {
+                  if (f.fullPath !== filePath) return f;
+                  // Merge tags (existing + new AI tags, deduplicated)
+                  const existingTags = Array.isArray(f.tags) ? f.tags : [];
+                  const newTags = Array.isArray(updates.tags) ? updates.tags : [];
+                  const mergedTags = [...new Set([...existingTags, ...newTags])];
+                  return { ...f, ...updates, tags: mergedTags };
+                })
+              );
             }}
           />
 

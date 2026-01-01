@@ -2177,3 +2177,251 @@ body {
 .settings-dialog__btn-small--danger:hover:not(:disabled) {
   background: rgba(255, 107, 107, 0.1);
 }
+
+/* ============================================
+   Batch Caption Dialog
+   ============================================ */
+
+.batch-caption-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.batch-caption-dialog {
+  background: var(--color-bg, #1a1a1a);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.batch-caption__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border, #333);
+}
+
+.batch-caption__header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text, #fff);
+}
+
+.batch-caption__body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.batch-caption__info {
+  margin-bottom: 20px;
+}
+
+.batch-caption__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.batch-caption__label {
+  color: var(--color-text-muted, #888);
+  font-size: 14px;
+}
+
+.batch-caption__value {
+  color: var(--color-text, #fff);
+  font-size: 14px;
+}
+
+.batch-caption__model {
+  font-family: monospace;
+  background: var(--color-bg-secondary, #2a2a2a);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.batch-caption__options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.batch-caption__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--color-text, #fff);
+  font-size: 14px;
+}
+
+.batch-caption__option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent, #4a9eff);
+}
+
+.batch-caption__estimate {
+  color: var(--color-text-muted, #888);
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+}
+
+.batch-caption__error {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 6px;
+}
+
+/* Progress view */
+.batch-caption__progress {
+  margin-bottom: 16px;
+}
+
+.batch-caption__progress-bar {
+  height: 8px;
+  background: var(--color-bg-secondary, #2a2a2a);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.batch-caption__progress-fill {
+  height: 100%;
+  background: var(--color-accent, #4a9eff);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.batch-caption__progress-text {
+  color: var(--color-text, #fff);
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}
+
+.batch-caption__current-file {
+  color: var(--color-text-muted, #888);
+  font-size: 13px;
+  margin: 0 0 16px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-caption__preview {
+  background: var(--color-bg-secondary, #2a2a2a);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.batch-caption__preview-caption {
+  color: var(--color-text, #fff);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.batch-caption__preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.batch-caption__tag {
+  background: var(--color-bg, #1a1a1a);
+  color: var(--color-text-muted, #888);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.batch-caption__tag-more {
+  color: var(--color-text-muted, #888);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.batch-caption__stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.batch-caption__stat {
+  font-size: 13px;
+}
+
+.batch-caption__stat--success {
+  color: #51cf66;
+}
+
+.batch-caption__stat--failed {
+  color: #ff6b6b;
+}
+
+/* Footer */
+.batch-caption__footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border, #333);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.batch-caption__btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--color-border, #444);
+  background: transparent;
+  color: var(--color-text, #fff);
+  transition: background 0.2s;
+}
+
+.batch-caption__btn:hover:not(:disabled) {
+  background: var(--color-bg-secondary, #2a2a2a);
+}
+
+.batch-caption__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.batch-caption__btn--primary {
+  background: var(--color-accent, #4a9eff);
+  border: none;
+  color: white;
+}
+
+.batch-caption__btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent, #4a9eff) 85%, black);
+}
+
+.batch-caption__btn--danger {
+  background: #ff6b6b;
+  border: none;
+  color: white;
+}
+
+.batch-caption__btn--danger:hover:not(:disabled) {
+  background: #ff5252;
+}

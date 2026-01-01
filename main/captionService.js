@@ -7,6 +7,20 @@ const path = require("path");
 
 const DEFAULT_ENDPOINT = "http://localhost:11434";
 
+// Per-image timeout in milliseconds based on model size
+const MODEL_TIMEOUTS = {
+  "qwen3-vl:2b": 60000,   // 60 seconds
+  "qwen3-vl:4b": 90000,   // 90 seconds
+  "qwen3-vl:8b": 120000,  // 120 seconds
+  "qwen3-vl:32b": 180000, // 180 seconds
+};
+
+const DEFAULT_TIMEOUT = 120000; // 2 minutes default
+
+function getTimeoutForModel(model) {
+  return MODEL_TIMEOUTS[model] || DEFAULT_TIMEOUT;
+}
+
 // Track active requests for cancellation
 const activeRequests = new Map();
 
@@ -26,14 +40,18 @@ async function generateCaption(imagePath, options = {}) {
     endpoint = DEFAULT_ENDPOINT,
     prompt = "Describe this image in detail for AI training. Focus on the subject, style, composition, lighting, colors, and any notable elements. Be concise but thorough.",
     requestId,
+    timeout,
   } = options;
 
   if (!model) {
     return { success: false, error: "No model specified" };
   }
 
-  // Create AbortController for this request
+  // Create AbortController for this request with timeout
   const controller = new AbortController();
+  const timeoutMs = timeout || getTimeoutForModel(model);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   if (requestId) {
     activeRequests.set(requestId, controller);
   }
@@ -60,6 +78,8 @@ async function generateCaption(imagePath, options = {}) {
       signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errorText = await response.text();
       return { success: false, error: `HTTP ${response.status}: ${errorText}` };
@@ -78,8 +98,14 @@ async function generateCaption(imagePath, options = {}) {
 
     return { success: true, caption };
   } catch (error) {
+    clearTimeout(timeoutId);
     if (error.name === "AbortError") {
-      return { success: false, error: "Cancelled", cancelled: true };
+      // Check if this was a user cancel or a timeout
+      const wasUserCancel = requestId && !activeRequests.has(requestId);
+      if (wasUserCancel) {
+        return { success: false, error: "Cancelled", cancelled: true };
+      }
+      return { success: false, error: "Request timed out", timedOut: true };
     }
     if (error.code === "ECONNREFUSED" || error.cause?.code === "ECONNREFUSED") {
       return { success: false, error: "Ollama is not running" };
@@ -89,6 +115,7 @@ async function generateCaption(imagePath, options = {}) {
     }
     return { success: false, error: error.message };
   } finally {
+    clearTimeout(timeoutId);
     if (requestId) {
       activeRequests.delete(requestId);
     }
@@ -109,14 +136,18 @@ async function generateTags(imagePath, options = {}) {
     model,
     endpoint = DEFAULT_ENDPOINT,
     requestId,
+    timeout,
   } = options;
 
   if (!model) {
     return { success: false, error: "No model specified" };
   }
 
-  // Create AbortController for this request
+  // Create AbortController for this request with timeout
   const controller = new AbortController();
+  const timeoutMs = timeout || getTimeoutForModel(model);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   if (requestId) {
     activeRequests.set(requestId, controller);
   }
@@ -143,6 +174,8 @@ async function generateTags(imagePath, options = {}) {
       signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errorText = await response.text();
       return { success: false, error: `HTTP ${response.status}: ${errorText}` };
@@ -167,8 +200,13 @@ async function generateTags(imagePath, options = {}) {
 
     return { success: true, tags };
   } catch (error) {
+    clearTimeout(timeoutId);
     if (error.name === "AbortError") {
-      return { success: false, error: "Cancelled", cancelled: true };
+      const wasUserCancel = requestId && !activeRequests.has(requestId);
+      if (wasUserCancel) {
+        return { success: false, error: "Cancelled", cancelled: true };
+      }
+      return { success: false, error: "Request timed out", timedOut: true };
     }
     if (error.code === "ECONNREFUSED" || error.cause?.code === "ECONNREFUSED") {
       return { success: false, error: "Ollama is not running" };
@@ -178,6 +216,7 @@ async function generateTags(imagePath, options = {}) {
     }
     return { success: false, error: error.message };
   } finally {
+    clearTimeout(timeoutId);
     if (requestId) {
       activeRequests.delete(requestId);
     }
@@ -251,10 +290,245 @@ function cancelRequest(requestId) {
   return { success: false, error: "Request not found" };
 }
 
+// Track active batch operations
+const activeBatchOps = new Map();
+
+/**
+ * Process a batch of images for captioning
+ * @param {Array} files - Array of {fullPath, name, fingerprint} objects
+ * @param {object} options - Options
+ * @param {string} options.model - Model to use
+ * @param {string} options.endpoint - Ollama endpoint
+ * @param {boolean} options.generateCaptions - Whether to generate captions
+ * @param {boolean} options.generateTags - Whether to generate tags
+ * @param {boolean} options.overwrite - Whether to overwrite existing captions
+ * @param {string} options.batchId - Unique batch ID for cancellation
+ * @param {function} options.onProgress - Progress callback
+ * @returns {Promise<{success: boolean, results: Array, completed: number, failed: number, cancelled: boolean}>}
+ */
+async function batchCaption(files, options = {}) {
+  const {
+    model,
+    endpoint = DEFAULT_ENDPOINT,
+    generateCaptions = true,
+    generateTags: doTags = true,
+    overwrite = false,
+    batchId,
+    onProgress,
+  } = options;
+
+  if (!model) {
+    return { success: false, error: "No model specified", results: [], completed: 0, failed: 0 };
+  }
+
+  // Create AbortController for batch
+  const controller = new AbortController();
+  if (batchId) {
+    activeBatchOps.set(batchId, controller);
+  }
+
+  const results = [];
+  let completed = 0;
+  let failed = 0;
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      // Check if cancelled
+      if (controller.signal.aborted) {
+        return {
+          success: false,
+          cancelled: true,
+          results,
+          completed,
+          failed,
+          stoppedAt: i,
+        };
+      }
+
+      const file = files[i];
+      const requestId = `batch-${batchId}-${i}`;
+
+      // Send progress update (starting this file)
+      // current = completed count (matches percent semantics)
+      if (onProgress) {
+        onProgress({
+          current: i,
+          total: files.length,
+          percent: Math.round((i / files.length) * 100),
+          currentFile: file.name,
+          currentPath: file.fullPath,
+          status: "processing",
+          completed,
+          failed,
+        });
+      }
+
+      console.log("[DEBUG captionService] Processing file", i + 1, "of", files.length, {
+        name: file.name,
+        fingerprint: file.fingerprint?.slice(0, 20),
+        hasFingerprint: !!file.fingerprint,
+      });
+
+      try {
+        let caption = null;
+        let tags = null;
+
+        if (generateCaptions && doTags) {
+          // Generate both
+          const result = await generateCaptionAndTags(file.fullPath, {
+            model,
+            endpoint,
+            requestId,
+          });
+          if (result.cancelled) {
+            return {
+              success: false,
+              cancelled: true,
+              results,
+              completed,
+              failed,
+              stoppedAt: i,
+            };
+          }
+          if (result.success) {
+            caption = result.caption;
+            tags = result.tags;
+          } else {
+            throw new Error(result.error);
+          }
+        } else if (generateCaptions) {
+          // Caption only
+          const result = await generateCaption(file.fullPath, { model, endpoint, requestId });
+          if (result.cancelled) {
+            return {
+              success: false,
+              cancelled: true,
+              results,
+              completed,
+              failed,
+              stoppedAt: i,
+            };
+          }
+          if (result.success) {
+            caption = result.caption;
+          } else {
+            throw new Error(result.error);
+          }
+        } else if (doTags) {
+          // Tags only
+          const result = await generateTags(file.fullPath, { model, endpoint, requestId });
+          if (result.cancelled) {
+            return {
+              success: false,
+              cancelled: true,
+              results,
+              completed,
+              failed,
+              stoppedAt: i,
+            };
+          }
+          if (result.success) {
+            tags = result.tags;
+          } else {
+            throw new Error(result.error);
+          }
+        }
+
+        results.push({
+          path: file.fullPath,
+          name: file.name,
+          fingerprint: file.fingerprint,
+          caption,
+          tags,
+          success: true,
+        });
+        completed++;
+
+        console.log("[DEBUG captionService] File completed successfully:", {
+          name: file.name,
+          fingerprint: file.fingerprint?.slice(0, 20),
+          captionLength: caption?.length,
+          tagsCount: tags?.length,
+          tags: tags?.slice(0, 3),
+        });
+
+        // Send progress with result
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: files.length,
+            percent: Math.round(((i + 1) / files.length) * 100),
+            currentFile: file.name,
+            currentPath: file.fullPath,
+            status: "completed",
+            completed,
+            failed,
+            lastResult: { caption, tags, success: true },
+          });
+        }
+      } catch (error) {
+        results.push({
+          path: file.fullPath,
+          name: file.name,
+          fingerprint: file.fingerprint,
+          error: error.message,
+          success: false,
+        });
+        failed++;
+
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: files.length,
+            percent: Math.round(((i + 1) / files.length) * 100),
+            currentFile: file.name,
+            currentPath: file.fullPath,
+            status: "failed",
+            completed,
+            failed,
+            lastResult: { error: error.message, success: false },
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      results,
+      completed,
+      failed,
+      cancelled: false,
+    };
+  } finally {
+    if (batchId) {
+      activeBatchOps.delete(batchId);
+    }
+  }
+}
+
+/**
+ * Cancel an active batch operation
+ * @param {string} batchId - The batch ID to cancel
+ * @returns {{success: boolean}}
+ */
+function cancelBatch(batchId) {
+  const controller = activeBatchOps.get(batchId);
+  if (controller) {
+    controller.abort();
+    activeBatchOps.delete(batchId);
+    return { success: true };
+  }
+  return { success: false, error: "Batch not found" };
+}
+
 module.exports = {
   generateCaption,
   generateTags,
   generateCaptionAndTags,
   cancelRequest,
+  batchCaption,
+  cancelBatch,
+  getTimeoutForModel,
+  MODEL_TIMEOUTS,
   DEFAULT_ENDPOINT,
 };

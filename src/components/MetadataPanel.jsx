@@ -235,19 +235,36 @@ const MetadataPanel = forwardRef((
     }
   }, [isOpen]);
 
-  // Reset caption state when selection changes
+  // Load or reset caption state when selection changes
   useEffect(() => {
-    const currentFile = selectedVideos.length === 1 ? selectedVideos[0]?.fullPath : null;
-    if (captionState.generatedFor && captionState.generatedFor !== currentFile) {
-      setCaptionState({
-        loading: false,
-        caption: null,
-        tags: null,
-        error: null,
-        generatedFor: null,
-        requestId: null,
-        startTime: null,
-      });
+    const currentFile = selectedVideos.length === 1 ? selectedVideos[0] : null;
+    const currentPath = currentFile?.fullPath ?? null;
+
+    // If selection changed, load existing caption or reset
+    if (captionState.generatedFor !== currentPath) {
+      if (currentFile?.aiCaption) {
+        // Load existing caption from file (batch tags are now saved as regular tags)
+        setCaptionState({
+          loading: false,
+          caption: currentFile.aiCaption || null,
+          tags: null,
+          error: null,
+          generatedFor: currentPath,
+          requestId: null,
+          startTime: null,
+        });
+      } else {
+        // Reset state
+        setCaptionState({
+          loading: false,
+          caption: null,
+          tags: null,
+          error: null,
+          generatedFor: null,
+          requestId: null,
+          startTime: null,
+        });
+      }
       setSuggestedTags([]);
       setElapsedSeconds(0);
     }
@@ -811,6 +828,16 @@ const MetadataPanel = forwardRef((
                   <section className="metadata-panel__section metadata-panel__section--tags">
                     <div className="metadata-panel__section-header">
                       <span>Tags</span>
+                      {sharedTags.length > 0 && (
+                        <button
+                          type="button"
+                          className="metadata-panel__clear-all-tags"
+                          onClick={() => sharedTags.forEach((tag) => onRemoveTag?.(tag))}
+                          title="Remove all tags from selected"
+                        >
+                          Clear All
+                        </button>
+                      )}
                       <span className="metadata-panel__badge">
                         {sharedTags.length ? `${sharedTags.length} applied` : "None"}
                       </span>

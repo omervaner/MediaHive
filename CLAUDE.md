@@ -47,7 +47,7 @@ See `docs/CHANGELOG.md` for detailed history.
 | 1 | Ollama detection & setup dialog | ✅ Done | `main/ollamaService.js`, `OllamaSetupDialog.jsx` |
 | 2 | Model download with progress | ✅ Done | Same + progress UI |
 | 3 | Caption service (single image) | ✅ Done | `main/captionService.js`, `MetadataPanel.jsx` |
-| 4 | Batch captioning UI | Pending | `BatchCaptionDialog.jsx`, `HeaderBar.jsx` |
+| 4 | Batch captioning UI | ✅ Done | `BatchCaptionDialog.jsx`, `HeaderBar.jsx` |
 | 5 | Caption display & editing | ✅ Done | Details panel, `SettingsDialog.jsx` |
 | 6 | Export integration | Pending | Connect captions to Dataset Export |
 
@@ -66,8 +66,13 @@ See `docs/CHANGELOG.md` for detailed history.
 - Single image captioning with cancel button
 - Elapsed timer during generation
 - 3-minute timeout warning
-- AI-suggested tags (Save/Discard workflow)
+- Batch captioning with progress UI and auto-save tags
 - Settings dialog with model management (view/delete models)
+
+### Recent Bug Fixes (2026-01-01)
+- Fixed batch caption not updating React state (typo: `setRawVideos` → `setVideos` in App.jsx)
+- Fixed skip logic to check `tags` (current state) instead of `aiTags` (historical)
+- Added "Clear All" button in Tags section to remove all tags from selected files
 
 ---
 

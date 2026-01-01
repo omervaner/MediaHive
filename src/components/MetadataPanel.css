@@ -746,3 +746,19 @@
   gap: 0.4rem;
   margin-top: 0.25rem;
 }
+
+/* Clear All Tags Button */
+.metadata-panel__clear-all-tags {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.metadata-panel__clear-all-tags:hover {
+  background: rgba(248, 113, 113, 0.25);
+}

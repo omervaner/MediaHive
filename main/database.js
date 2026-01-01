@@ -228,6 +228,15 @@ function initDatabase(app, profilePath) {
       FOREIGN KEY (fingerprint) REFERENCES files(fingerprint) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS captions (
+      fingerprint TEXT PRIMARY KEY,
+      caption TEXT,
+      tags TEXT,
+      model TEXT,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (fingerprint) REFERENCES files(fingerprint) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_files_path ON files(last_known_path);
     CREATE INDEX IF NOT EXISTS idx_file_tags_tag ON file_tags(tag_id);
   `);
@@ -330,6 +339,20 @@ function createMetadataStore(db) {
 
   const deleteRatingStmt = db.prepare(`DELETE FROM ratings WHERE fingerprint = ?;`);
 
+  const getCaption = db.prepare(`
+    SELECT caption, tags, model, updated_at FROM captions WHERE fingerprint = ?;
+  `);
+
+  const setCaptionStmt = db.prepare(`
+    INSERT INTO captions (fingerprint, caption, tags, model, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(fingerprint) DO UPDATE SET
+      caption=excluded.caption,
+      tags=excluded.tags,
+      model=excluded.model,
+      updated_at=excluded.updated_at;
+  `);
+
   const metadataCache = new Map();
 
   function cacheKey(filePath, stats) {
@@ -391,6 +414,7 @@ function createMetadataStore(db) {
     const tags = tagsForFingerprint.all(fingerprint).map((row) => row.name);
     const ratingRow = getRating.get(fingerprint);
     const dimRow = fileSelect.get(fingerprint);
+    const captionRow = getCaption.get(fingerprint);
     let dimensions = null;
     if (dimRow) {
       const width = Number(dimRow.width) || 0;
@@ -399,10 +423,32 @@ function createMetadataStore(db) {
         dimensions = { width, height, aspectRatio: width / height };
       }
     }
+    let aiCaption = null;
+    let aiTags = null;
+    let captionModel = null;
+    if (captionRow) {
+      aiCaption = captionRow.caption || null;
+      captionModel = captionRow.model || null;
+      try {
+        aiTags = captionRow.tags ? JSON.parse(captionRow.tags) : null;
+      } catch (e) {
+        aiTags = null;
+      }
+      // Debug: log when caption data is found
+      console.log("[DEBUG DB] mapMetadataRow found caption:", {
+        fingerprint: fingerprint?.slice(0, 20),
+        hasCaption: !!aiCaption,
+        captionLength: aiCaption?.length,
+        tagsCount: aiTags?.length,
+      });
+    }
     return {
       tags,
       rating: ratingRow ? ratingRow.value : null,
       dimensions,
+      aiCaption,
+      aiTags,
+      captionModel,
     };
   }
 
@@ -511,6 +557,42 @@ function createMetadataStore(db) {
     return updates;
   }
 
+  function setCaption(fingerprint, caption, aiTags, model) {
+    if (!fingerprint) {
+      console.log("[DEBUG DB] setCaption: REJECTED - no fingerprint");
+      return null;
+    }
+    const now = Date.now();
+    const tagsJson = aiTags ? JSON.stringify(aiTags) : null;
+    console.log("[DEBUG DB] setCaption WRITING:", {
+      fingerprint: fingerprint?.slice(0, 20),
+      captionLength: caption?.length,
+      tagsCount: aiTags?.length,
+      tagsJson: tagsJson?.slice(0, 100),
+      model,
+    });
+
+    // Write to DB
+    const writeResult = setCaptionStmt.run(fingerprint, caption || null, tagsJson, model || null, now);
+    console.log("[DEBUG DB] setCaption write result:", { changes: writeResult.changes });
+
+    // Immediately verify write by reading back
+    const verifyRow = getCaption.get(fingerprint);
+    console.log("[DEBUG DB] setCaption VERIFY read back:", {
+      found: !!verifyRow,
+      caption: verifyRow?.caption?.slice(0, 50),
+      tags: verifyRow?.tags?.slice(0, 50),
+      model: verifyRow?.model,
+    });
+
+    const result = mapMetadataRow(fingerprint);
+    console.log("[DEBUG DB] setCaption mapped result:", {
+      aiCaption: result?.aiCaption?.slice(0, 50),
+      aiTagsCount: result?.aiTags?.length,
+    });
+    return result;
+  }
+
   return {
     indexFile,
     getMetadataForFingerprints,
@@ -518,6 +600,7 @@ function createMetadataStore(db) {
     assignTags,
     removeTag,
     setRating,
+    setCaption,
     getDimensions,
     setDimensions,
   };

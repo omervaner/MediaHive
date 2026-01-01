@@ -253,6 +253,8 @@ async function createVideoFileObject(filePath, baseFolderPath) {
     let tags = [];
     let rating = null;
     let dimensions = null;
+    let aiCaption = null;
+    let aiTags = null;
 
     const isValidDimensions = (dims) =>
       dims && Number.isFinite(dims.width) && Number.isFinite(dims.height) && dims.width > 0 && dims.height > 0;
@@ -266,6 +268,17 @@ async function createVideoFileObject(filePath, baseFolderPath) {
         typeof info?.rating === "number" && Number.isFinite(info.rating)
           ? info.rating
           : null;
+      aiCaption = info?.aiCaption ?? null;
+      aiTags = Array.isArray(info?.aiTags) ? info.aiTags : null;
+
+      // Debug: log if caption data exists
+      if (aiCaption || aiTags) {
+        console.log("[DEBUG] Loaded caption data for", path.basename(filePath), {
+          fingerprint: fingerprint?.slice(0, 20),
+          captionLength: aiCaption?.length,
+          tagsCount: aiTags?.length,
+        });
+      }
 
       if (isValidDimensions(info?.dimensions)) {
         dimensions = info.dimensions;
@@ -319,6 +332,8 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       fingerprint,
       tags,
       rating,
+      aiCaption,
+      aiTags,
       isScreenshot: screenshotInfo.isScreenshot,
       screenshotConfidence: screenshotInfo.confidence,
       dimensions: dimensions
@@ -394,9 +409,16 @@ async function scanFolderForChanges(folderPath, options = {}) {
       // Added/changed
       for (const [filePath, fileInfo] of currentFiles) {
         if (!lastFolderScan.has(filePath)) {
-          const videoFile = await createVideoFileObject(filePath, folderPath);
-          if (videoFile) {
-            mainWindow.webContents.send("file-added", videoFile);
+          try {
+            const videoFile = await createVideoFileObject(filePath, folderPath);
+            if (videoFile) {
+              mainWindow.webContents.send("file-added", videoFile);
+            }
+          } catch (e) {
+            // File may have been deleted between scan and now
+            if (e.code !== "ENOENT") {
+              console.warn("[polling:add] Error:", e.message);
+            }
           }
         } else {
           const lastInfo = lastFolderScan.get(filePath);
@@ -404,9 +426,18 @@ async function scanFolderForChanges(folderPath, options = {}) {
             lastInfo.mtime !== fileInfo.mtime ||
             lastInfo.size !== fileInfo.size
           ) {
-            const videoFile = await createVideoFileObject(filePath, folderPath);
-            if (videoFile) {
-              mainWindow.webContents.send("file-changed", videoFile);
+            try {
+              const videoFile = await createVideoFileObject(filePath, folderPath);
+              if (videoFile) {
+                mainWindow.webContents.send("file-changed", videoFile);
+              }
+            } catch (e) {
+              // File may have been deleted - send removal
+              if (e.code === "ENOENT") {
+                mainWindow.webContents.send("file-removed", filePath);
+              } else {
+                console.warn("[polling:change] Error:", e.message);
+              }
             }
           }
         }
@@ -1732,6 +1763,30 @@ ipcMain.handle("metadata:get", async (_event, fingerprints = []) => {
   }
 });
 
+ipcMain.handle(
+  "metadata:set-caption",
+  async (_event, fingerprint, caption, aiTags, model) => {
+    console.log("[DEBUG] metadata:set-caption called:", {
+      fingerprint: fingerprint?.slice(0, 20) + "...",
+      captionLength: caption?.length,
+      tagsCount: aiTags?.length,
+      model,
+    });
+    try {
+      const store = getMetadataStore();
+      if (!fingerprint) {
+        return { success: false, error: "No fingerprint provided" };
+      }
+      const result = store.setCaption(fingerprint, caption, aiTags, model);
+      console.log("[DEBUG] setCaption result:", result);
+      return { success: true, metadata: result };
+    } catch (error) {
+      console.error("Failed to save caption:", error);
+      return { success: false, error: error?.message || String(error) };
+    }
+  }
+);
+
 // File info helpers
 ipcMain.handle("get-file-info", async (_event, filePath) => {
   try {
@@ -1960,6 +2015,84 @@ ipcMain.handle("caption:both", async (_event, imagePath, requestId) => {
 
 ipcMain.handle("caption:cancel", (_event, requestId) => {
   return captionService.cancelRequest(requestId);
+});
+
+ipcMain.handle("caption:batch", async (event, files, options) => {
+  const settings = currentSettings || (await loadSettings());
+  const model = settings?.ollama?.model;
+  const endpoint = settings?.ollama?.endpoint || captionService.DEFAULT_ENDPOINT;
+
+  if (!model) {
+    return { success: false, error: "No AI model configured. Please set up AI captioning first." };
+  }
+
+  const store = getMetadataStore();
+
+  console.log("[DEBUG] caption:batch starting with", files.length, "files");
+  // Log first few files to verify structure
+  console.log("[DEBUG] First file structure:", files[0] ? {
+    fullPath: files[0].fullPath,
+    name: files[0].name,
+    fingerprint: files[0].fingerprint?.slice(0, 20),
+    hasFingerprint: !!files[0].fingerprint,
+  } : "NO FILES");
+
+  return captionService.batchCaption(files, {
+    ...options,
+    model,
+    endpoint,
+    onProgress: (progress) => {
+      console.log("[DEBUG] batch progress:", {
+        current: progress.current,
+        total: progress.total,
+        status: progress.status,
+        hasLastResult: !!progress.lastResult,
+        lastResultSuccess: progress.lastResult?.success,
+        currentPath: progress.currentPath,
+      });
+
+      // Save each successful caption immediately to the database
+      if (progress.lastResult?.success && progress.currentPath) {
+        const file = files.find((f) => f.fullPath === progress.currentPath);
+        console.log("[DEBUG] Looking for file to save:", {
+          currentPath: progress.currentPath,
+          foundFile: !!file,
+          fingerprint: file?.fingerprint?.slice(0, 20),
+          captionLength: progress.lastResult.caption?.length,
+          tagsCount: progress.lastResult.tags?.length,
+        });
+        if (file?.fingerprint) {
+          try {
+            // Save caption to captions table
+            store.setCaption(
+              file.fingerprint,
+              progress.lastResult.caption,
+              progress.lastResult.tags,
+              model
+            );
+
+            // For batch operations, also save AI tags as regular tags (auto-apply)
+            if (progress.lastResult.tags?.length > 0) {
+              store.assignTags([file.fingerprint], progress.lastResult.tags);
+            }
+
+            console.log("[DEBUG] Caption and tags saved for", file.fingerprint?.slice(0, 20));
+            progress.lastResult.saved = true;
+          } catch (err) {
+            console.error("Failed to save caption for", progress.currentPath, err);
+            progress.lastResult.saveError = err.message;
+          }
+        } else {
+          console.log("[DEBUG] No fingerprint found for file, cannot save");
+        }
+      }
+      event.sender.send("caption:batch-progress", progress);
+    },
+  });
+});
+
+ipcMain.handle("caption:batch-cancel", (_event, batchId) => {
+  return captionService.cancelBatch(batchId);
 });
 
 ipcMain.handle('mem:get', () => {

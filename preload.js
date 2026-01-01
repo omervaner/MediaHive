@@ -223,6 +223,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("metadata:set-rating", fingerprints, rating),
     get: async (fingerprints) =>
       ipcRenderer.invoke("metadata:get", fingerprints),
+    setCaption: async (fingerprint, caption, aiTags, model) =>
+      ipcRenderer.invoke("metadata:set-caption", fingerprint, caption, aiTags, model),
   },
 
   recent: {
@@ -263,6 +265,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     tags: async (imagePath, requestId) => ipcRenderer.invoke("caption:tags", imagePath, requestId),
     both: async (imagePath, requestId) => ipcRenderer.invoke("caption:both", imagePath, requestId),
     cancel: async (requestId) => ipcRenderer.invoke("caption:cancel", requestId),
+    batch: async (files, options) => ipcRenderer.invoke("caption:batch", files, options),
+    batchCancel: async (batchId) => ipcRenderer.invoke("caption:batch-cancel", batchId),
+    onBatchProgress: (callback) => {
+      const handler = (_event, progress) => callback(progress);
+      ipcRenderer.on("caption:batch-progress", handler);
+      return () => ipcRenderer.removeListener("caption:batch-progress", handler);
+    },
   },
 });
 

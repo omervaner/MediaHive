@@ -177,14 +177,23 @@ function createFolderWatcher({
         const videoFile = await createVideoFileObject(filePath, folderPath);
         if (videoFile) events.emit("added", videoFile);
       } catch (e) {
+        // File may have been deleted immediately after being added
+        if (e.code === "ENOENT") {
+          logger.log("[watch:add] File already gone:", filePath);
+          return;
+        }
         logger.error("[watch:add] createVideoFileObject failed:", e);
-        events.emit("error", e);
       }
     });
 
     fileWatcher.on("unlink", (filePath) => {
       if (!isVideoFile(filePath)) return;
       logger.log("Video file removed:", filePath);
+      // Clear any pending change timeout for this file
+      if (changeTimeouts.has(filePath)) {
+        clearTimeout(changeTimeouts.get(filePath));
+        changeTimeouts.delete(filePath);
+      }
       events.emit("removed", filePath);
     });
 
@@ -202,8 +211,13 @@ function createFolderWatcher({
             const videoFile = await createVideoFileObject(filePath, folderPath);
             if (videoFile) events.emit("changed", videoFile);
           } catch (e) {
+            // File may have been deleted - emit removal instead of error
+            if (e.code === "ENOENT") {
+              logger.log("[watch:change] File gone, emitting removal:", filePath);
+              events.emit("removed", filePath);
+              return;
+            }
             logger.error("[watch:change] createVideoFileObject failed:", e);
-            events.emit("error", e);
           } finally {
             changeTimeouts.delete(filePath);
           }

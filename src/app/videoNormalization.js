@@ -18,6 +18,17 @@ export const normalizeVideoFromMain = (video) => {
       )
     : [];
 
+  // Normalize AI caption data
+  const aiCaption =
+    typeof video.aiCaption === "string" && video.aiCaption.length > 0
+      ? video.aiCaption
+      : null;
+  const aiTags = Array.isArray(video.aiTags)
+    ? video.aiTags
+        .map((tag) => (tag ?? "").toString().trim())
+        .filter(Boolean)
+    : null;
+
   const rawDimensions = video?.dimensions;
   const width = Number(rawDimensions?.width);
   const height = Number(rawDimensions?.height);
@@ -44,6 +55,8 @@ export const normalizeVideoFromMain = (video) => {
     fingerprint,
     rating,
     tags,
+    aiCaption,
+    aiTags,
     dimensions: sanitizedDimensions,
     aspectRatio,
   };
