@@ -4,6 +4,7 @@ import { classifyMediaError } from "./mediaError";
 import { toFileURL, hardDetach } from "./videoDom";
 import { useVideoStallWatchdog } from "../../hooks/useVideoStallWatchdog";
 import { thumbService, signatureForVideo } from "../../services/thumbService";
+import ImageElement from "./ImageElement";
 
 const VideoCard = memo(function VideoCard({
   video,
@@ -53,6 +54,7 @@ const VideoCard = memo(function VideoCard({
 
   // local mirrors (parent is source of truth)
   const videoId = video.id || video.fullPath || video.name;
+  const isImage = video.mediaType === "image";
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -306,8 +308,9 @@ const VideoCard = memo(function VideoCard({
     };
   }, [isPlaying, isVisible, loaded, videoId, onVideoPlay, onVideoPause, onPlayError]);
 
-  // Quiet stall watchdog (no visual changes)
+  // Quiet stall watchdog (no visual changes) - videos only
   useEffect(() => {
+    if (isImage) return; // Skip for images
     if (!videoRef.current) return;
     const enable =
       loaded && isPlaying && isVisible && !isAdoptedByModal() && !permanentErrorRef.current;
@@ -322,10 +325,11 @@ const VideoCard = memo(function VideoCard({
       });
     }
     return () => { if (teardown) teardown(); };
-  }, [loaded, isPlaying, isVisible, isAdoptedByModal, videoId]);
+  }, [isImage, loaded, isPlaying, isVisible, isAdoptedByModal, videoId]);
 
   // create & load <video>
   const loadVideo = useCallback((options = {}) => {
+    if (isImage) return; // Images are handled by ImageElement
     if (loading || loadRequestedRef.current) return;
     if (hasRenderableVideo()) return;
     const allowLoad = canLoadMoreVideos?.(options);
@@ -493,6 +497,7 @@ const VideoCard = memo(function VideoCard({
   }, [
     video,
     videoId,
+    isImage,
     isVisible,
     canLoadMoreVideos,
     loading,
@@ -847,7 +852,28 @@ const VideoCard = memo(function VideoCard({
         </div>
       )}
 
-      {loaded && videoRef.current && !isAdoptedByModal() ? (
+      {isImage ? (
+        <div
+          className="video-container"
+          style={{ width: "100%", height: showFilenames ? "calc(100% - 40px)" : "100%" }}
+          ref={videoContainerRef}
+        >
+          <ImageElement
+            video={video}
+            onLoad={(aspectRatio) => {
+              setLoaded(true);
+              onVideoLoad?.(videoId, aspectRatio);
+              onStopLoading?.(videoId);
+            }}
+            onError={(e) => {
+              setErrorText("Failed to load image");
+              onPlayError?.(videoId, e);
+              onStopLoading?.(videoId);
+            }}
+            containerRef={videoContainerRef}
+          />
+        </div>
+      ) : loaded && videoRef.current && !isAdoptedByModal() ? (
         <div
           className="video-container"
           style={{ width: "100%", height: showFilenames ? "calc(100% - 40px)" : "100%" }}

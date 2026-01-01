@@ -20,6 +20,7 @@ const { source: dataLocationSource } = dataLocationManager.bootstrap(process.arg
 
 const { getEmbeddedDragIcon } = require("./main/drag-icon");
 const { getVideoDimensions } = require("./main/videoDimensions");
+const { getImageDimensions } = require("./main/imageDimensions");
 require("./main/ipc-trash")(ipcMain);
 const { initMetadataStore, getMetadataStore, resetDatabase } = require("./main/database");
 const profileManager = require("./main/profile-manager");
@@ -27,6 +28,11 @@ const { thumbnailCache } = require("./main/thumb-cache");
 const { migrateLegacyProfileData } = require("./main/profile-migration");
 
 const DEFAULT_DONATION_URL = "https://ko-fi.com/videoswarm";
+
+// Supported media file extensions
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'];
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.flv', '.wmv', '.3gp', '.ogv'];
+const MEDIA_EXTENSIONS = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS];
 
 function loadSupportContent() {
   try {
@@ -162,6 +168,7 @@ const defaultSettings = {
   sortKey: "name",
   sortDir: "asc",
   groupByFolders: true,
+  mediaFilter: "all", // 'images' | 'videos' | 'all'
   randomSeed: null,
   windowBounds: {
     width: 1400,
@@ -204,22 +211,20 @@ function getProfileDisplayName(profileId = getActiveProfileId()) {
 // We keep scanFolderForChanges so the watcher module can call it in polling mode.
 let lastFolderScan = new Map();
 
-// Helper function to check if file is a video
+// Helper functions to check file types
 function isVideoFile(fileName) {
-  const videoExtensions = [
-    ".mp4",
-    ".mov",
-    ".avi",
-    ".mkv",
-    ".webm",
-    ".m4v",
-    ".flv",
-    ".wmv",
-    ".3gp",
-    ".ogv",
-  ];
   const ext = path.extname(fileName).toLowerCase();
-  return videoExtensions.includes(ext);
+  return VIDEO_EXTENSIONS.includes(ext);
+}
+
+function isImageFile(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  return IMAGE_EXTENSIONS.includes(ext);
+}
+
+function isMediaFile(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  return MEDIA_EXTENSIONS.includes(ext);
 }
 
 // Helper function to format file sizes
@@ -268,7 +273,10 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       }
 
       if (!isValidDimensions(dimensions)) {
-        const computed = await getVideoDimensions(filePath, stats);
+        // Use appropriate dimension extractor based on file type
+        const computed = isImageFile(filePath)
+          ? await getImageDimensions(filePath, stats)
+          : await getVideoDimensions(filePath, stats);
         if (isValidDimensions(computed)) {
           dimensions = computed;
           if (fingerprint) {
@@ -289,6 +297,7 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       fullPath: filePath,
       relativePath: path.relative(baseFolderPath, filePath),
       extension: ext,
+      mediaType: isImageFile(filePath) ? 'image' : 'video',
       size: stats.size,
       dateModified: stats.mtime,
       dateCreated: stats.birthtime,
@@ -333,18 +342,6 @@ async function createVideoFileObject(filePath, baseFolderPath) {
 async function scanFolderForChanges(folderPath, options = {}) {
   const { recursive = true } = options;
   try {
-    const videoExtensions = [
-      ".mp4",
-      ".mov",
-      ".avi",
-      ".mkv",
-      ".webm",
-      ".m4v",
-      ".flv",
-      ".wmv",
-      ".3gp",
-      ".ogv",
-    ];
     const currentFiles = new Map();
 
     async function scanDirectory(dirPath, depth = 0) {
@@ -356,8 +353,7 @@ async function scanFolderForChanges(folderPath, options = {}) {
         const fullPath = path.join(dirPath, file.name);
 
         if (file.isFile()) {
-          const ext = path.extname(file.name).toLowerCase();
-          if (videoExtensions.includes(ext)) {
+          if (isMediaFile(file.name)) {
             try {
               const stats = await fsPromises.stat(fullPath);
               currentFiles.set(fullPath, {
@@ -418,7 +414,7 @@ async function scanFolderForChanges(folderPath, options = {}) {
 
 // Instantiate watcher (single instance, logic in ./main/watcher.js)
 const folderWatcher = createFolderWatcher({
-  isVideoFile,
+  isVideoFile: isMediaFile, // Now accepts both images and videos
   createVideoFileObject,
   scanFolderForChanges,
   logger: console,
@@ -685,7 +681,7 @@ async function createWindow() {
     },
     icon: iconPath,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    title: `Video Swarm v${appVersion}`,
+    title: `MediaHive v${appVersion}`,
   });
 
   // set the dock icon explicitly on macOS
@@ -712,7 +708,7 @@ async function createWindow() {
 
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("Page loaded, sending settings immediately");
-    mainWindow.setTitle(`Video Swarm v${appVersion}`);
+    mainWindow.setTitle(`MediaHive v${appVersion}`);
     mainWindow.webContents.send("settings-loaded", currentSettings);
     mainWindow.webContents.send("profile-changed", {
       profileId: getActiveProfileId(),
@@ -724,7 +720,7 @@ async function createWindow() {
 
   mainWindow.webContents.on("dom-ready", () => {
     console.log("DOM ready, sending settings");
-    mainWindow.setTitle(`Video Swarm v${appVersion}`);
+    mainWindow.setTitle(`MediaHive v${appVersion}`);
     mainWindow.webContents.send("settings-loaded", currentSettings);
     mainWindow.webContents.send("profile-changed", {
       profileId: getActiveProfileId(),
@@ -1563,25 +1559,13 @@ ipcMain.handle("confirm-move-to-trash", async (event, payload = {}) => {
   }
 });
 
-// Read directory and return video files with metadata
+// Read directory and return media files with metadata
 ipcMain.handle(
   "read-directory",
   async (_event, folderPath, recursive = false) => {
     try {
       console.log(`Reading directory: ${folderPath} (recursive: ${recursive})`);
-      const videoExtensions = [
-        ".mp4",
-        ".mov",
-        ".avi",
-        ".mkv",
-        ".webm",
-        ".m4v",
-        ".flv",
-        ".wmv",
-        ".3gp",
-        ".ogv",
-      ];
-      const videoFiles = [];
+      const mediaFiles = [];
 
       async function scanDirectory(dirPath, depth = 0) {
         const files = await fsPromises.readdir(dirPath, { withFileTypes: true });
@@ -1590,15 +1574,14 @@ ipcMain.handle(
           const fullPath = path.join(dirPath, file.name);
 
           if (file.isFile()) {
-            const ext = path.extname(file.name).toLowerCase();
-            if (videoExtensions.includes(ext)) {
+            if (isMediaFile(file.name)) {
               try {
                 const videoFile = await createVideoFileObject(
                   fullPath,
                   folderPath
                 );
                 if (videoFile) {
-                  videoFiles.push(videoFile);
+                  mediaFiles.push(videoFile);
                 }
               } catch (error) {
                 console.warn(
@@ -1632,10 +1615,10 @@ ipcMain.handle(
       await scanDirectory(folderPath);
 
       console.log(
-        `Found ${videoFiles.length} video files in ${folderPath} (recursive: ${recursive})`
+        `Found ${mediaFiles.length} media files in ${folderPath} (recursive: ${recursive})`
       );
 
-      return videoFiles.sort((a, b) => a.name.localeCompare(b.name));
+      return mediaFiles.sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error("Error reading directory:", error);
       throw error;

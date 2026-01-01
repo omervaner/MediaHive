@@ -1,19 +1,22 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
-const FullScreenModal = ({ 
-  video, 
-  onClose, 
-  onNavigate, 
+const FullScreenModal = ({
+  video,
+  onClose,
+  onNavigate,
   showFilenames,
-  gridRef 
+  gridRef
 }) => {
   const modalRef = useRef(null);
   const adoptHostRef = useRef(null);     // host where we move the existing grid <video>
   const fallbackRef = useRef(null);      // fallback <video> if adoption fails
+  const imageRef = useRef(null);         // for image display
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [usingAdopted, setUsingAdopted] = useState(false);
+
+  const isImage = video?.mediaType === 'image';
 
   // Keep track for restoration
   const adoptedElRef = useRef(null);
@@ -99,7 +102,7 @@ const FullScreenModal = ({
     originalNextSiblingRef.current = null;
   }, []);
 
-  // Main effect: adopt if possible, else use fallback <video>
+  // Main effect: adopt if possible, else use fallback <video> or <img>
   useEffect(() => {
     if (!video) return;
 
@@ -108,7 +111,36 @@ const FullScreenModal = ({
     setVideoLoaded(false);
     setUsingAdopted(false);
 
-    // Fast path: adopt
+    // Handle images differently
+    if (isImage) {
+      const img = imageRef.current;
+      if (!img) return;
+
+      const onLoad = () => {
+        setIsLoading(false);
+        setVideoLoaded(true);
+      };
+      const onError = () => {
+        setIsLoading(false);
+        setError('Failed to load image');
+      };
+
+      img.addEventListener('load', onLoad);
+      img.addEventListener('error', onError);
+
+      const nextSrc = video.isElectronFile && video.fullPath
+        ? `file://${video.fullPath}`
+        : (video.blobUrl || (video.file ? URL.createObjectURL(video.file) : ''));
+
+      img.src = nextSrc;
+
+      return () => {
+        img.removeEventListener('load', onLoad);
+        img.removeEventListener('error', onError);
+      };
+    }
+
+    // Fast path for videos: adopt
     const adopted = tryAdoptExistingVideo();
     if (adopted) return () => restoreAdopted();
 
@@ -144,7 +176,7 @@ const FullScreenModal = ({
       el.removeEventListener('error', onError);
       // Do not revoke blob here if shared elsewhere
     };
-  }, [video, tryAdoptExistingVideo, restoreAdopted]);
+  }, [video, isImage, tryAdoptExistingVideo, restoreAdopted]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -162,8 +194,9 @@ const FullScreenModal = ({
           onNavigate('next');
           break;
         case ' ':
-          e.preventDefault();
-          {
+          // Play/pause only for videos, not images
+          if (!isImage) {
+            e.preventDefault();
             const el = usingAdopted ? adoptedElRef.current : fallbackRef.current;
             if (el) el.paused ? el.play() : el.pause();
           }
@@ -175,7 +208,7 @@ const FullScreenModal = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onNavigate, usingAdopted]);
+  }, [onClose, onNavigate, usingAdopted, isImage]);
 
   // Handle click outside to close
   const handleBackdropClick = useCallback((e) => {
@@ -343,7 +376,7 @@ const FullScreenModal = ({
                   borderRadius: '50%'
                 }}
               />
-              Loading video...
+              Loading {isImage ? 'image' : 'video'}...
             </div>
           )}
 
@@ -359,44 +392,67 @@ const FullScreenModal = ({
               border: '1px solid rgba(255, 107, 107, 0.3)'
             }}>
               <div style={{ fontSize: '24px', marginBottom: '10px' }}>⚠️</div>
-              <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Error Loading Video</div>
+              <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Error Loading {isImage ? 'Image' : 'Video'}</div>
               <div style={{ opacity: 0.8 }}>{error}</div>
             </div>
           )}
 
+          {/* Image display */}
+          {isImage && (
+            <img
+              ref={imageRef}
+              alt={video?.name || 'Image'}
+              style={{
+                display: 'block',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                objectFit: 'contain',
+                borderRadius: '8px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+
           {/* Host where we adopt the existing grid <video> */}
-          <div
-            ref={adoptHostRef}
-            style={{
-              display: usingAdopted ? 'flex' : 'none',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              width: '100%',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
+          {!isImage && (
+            <div
+              ref={adoptHostRef}
+              style={{
+                display: usingAdopted ? 'flex' : 'none',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
 
           {/* Fallback <video> used only if adoption fails */}
-          <video
-            ref={fallbackRef}
-            muted
-            loop
-            controls
-            playsInline
-            style={{
-              display: usingAdopted ? 'none' : 'block',
-              width: 'auto',
-              height: '90vh',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              objectFit: 'contain',
-              borderRadius: '8px',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
+          {!isImage && (
+            <video
+              ref={fallbackRef}
+              muted
+              loop
+              controls
+              playsInline
+              style={{
+                display: usingAdopted ? 'none' : 'block',
+                width: 'auto',
+                height: '90vh',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                objectFit: 'contain',
+                borderRadius: '8px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
 
           {/* Video info */}
           {showFilenames && videoLoaded && (
@@ -429,7 +485,7 @@ const FullScreenModal = ({
             textAlign: 'center'
           }}>
             <span style={{ marginRight: '20px' }}>← → Navigate</span>
-            <span style={{ marginRight: '20px' }}>Space Play/Pause</span>
+            {!isImage && <span style={{ marginRight: '20px' }}>Space Play/Pause</span>}
             <span>Esc Close</span>
           </div>
         </div>

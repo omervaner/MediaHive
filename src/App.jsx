@@ -147,6 +147,7 @@ function App() {
   const [sortKey, setSortKey] = useState(SortKey.NAME);
   const [sortDir, setSortDir] = useState("asc");
   const [groupByFolders, setGroupByFolders] = useState(true);
+  const [mediaFilter, setMediaFilter] = useState("all"); // 'images' | 'videos' | 'all'
   const [randomSeed, setRandomSeed] = useState(null);
   const [isAboutOpen, setAboutOpen] = useState(false);
   const [isDataLocationOpen, setDataLocationOpen] = useState(false);
@@ -291,6 +292,7 @@ function App() {
     setRandomSeed,
     setZoomLevelFromSettings: (value) =>
       applyZoomFromSettingsRef.current?.(value),
+    setMediaFilter,
     setVisibleVideos,
     setLoadedVideos,
     setLoadingVideos,
@@ -298,6 +300,18 @@ function App() {
     refreshTagList: invokeRefreshTagList,
     addRecentFolder,
   });
+
+  // Filter videos by media type (images/videos/all)
+  const mediaFilteredVideos = useMemo(() => {
+    if (mediaFilter === "all") return videos;
+    if (mediaFilter === "images") {
+      return videos.filter((v) => v.mediaType === "image");
+    }
+    if (mediaFilter === "videos") {
+      return videos.filter((v) => v.mediaType !== "image");
+    }
+    return videos;
+  }, [videos, mediaFilter]);
 
   const {
     filters,
@@ -312,7 +326,7 @@ function App() {
     handleRemoveIncludeFilter,
     handleRemoveExcludeFilter,
   } = useFilterState({
-    videos,
+    videos: mediaFilteredVideos,
     filtersButtonRef,
     filtersPopoverRef,
   });
@@ -1202,6 +1216,17 @@ function App() {
     });
   }, [groupByFolders, sortKey, sortDir, randomSeed]);
 
+  const handleMediaFilterChange = useCallback(
+    (filter) => {
+      if (filter !== "images" && filter !== "videos" && filter !== "all") return;
+      setMediaFilter(filter);
+      window.electronAPI?.saveSettingsPartial?.({
+        mediaFilter: filter,
+      });
+    },
+    []
+  );
+
   const reshuffleRandom = useCallback(() => {
     const seed = Date.now();
     setRandomSeed(seed);
@@ -1393,6 +1418,8 @@ function App() {
             filtersActiveCount={filtersActiveCount}
             filtersAreOpen={isFiltersOpen}
             filtersButtonRef={filtersButtonRef}
+            mediaFilter={mediaFilter}
+            onMediaFilterChange={handleMediaFilterChange}
           />
 
           {isFiltersOpen && (
@@ -1507,12 +1534,12 @@ function App() {
                 onClear={clearRecentFolders}
               />
               <div className="drop-zone">
-                <h2>🐝 Welcome to Video Swarm 🐝</h2>
+                <h2>🐝 Welcome to MediaHive 🐝</h2>
                 <p>
-                  Click the green folder icon in the top left to open a directory of videos.
+                  Click the green folder icon in the top left to open a directory of media.
                 </p>
                 <p>
-                  Use the Subfolders toggle to enable recursive loading, which will recursively load all videos in all subfolders as well.
+                  Use the Subfolders toggle to enable recursive loading, which will recursively load all media in all subfolders as well.
                 </p>
                 {window.innerWidth > 2560 && (
                   <p style={{ color: "#ffa726", fontSize: "0.9rem" }}>

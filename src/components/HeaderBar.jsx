@@ -90,6 +90,21 @@ const FilterIcon = (props) => (
   </Icon>
 );
 
+const ImageIcon = (props) => (
+  <Icon {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </Icon>
+);
+
+const VideoIcon = (props) => (
+  <Icon {...props}>
+    <polygon points="23 7 16 12 23 17 23 7" />
+    <rect x="1" y="5" width="15" height="14" rx="2" />
+  </Icon>
+);
+
 export default function HeaderBar({
   isLoadingFolder,
   handleFolderSelect,
@@ -118,6 +133,8 @@ export default function HeaderBar({
   filtersActiveCount = 0,
   filtersAreOpen = false,
   filtersButtonRef,
+  mediaFilter = "all",
+  onMediaFilterChange,
 }) {
   const isElectron = !!window.electronAPI?.isElectron;
 
@@ -186,6 +203,38 @@ export default function HeaderBar({
         >
           <TextIcon />
         </button>
+
+        <div style={dividerStyle}>
+          <div className="media-filter-control" style={{ display: "flex", gap: "2px" }}>
+            <button
+              onClick={() => onMediaFilterChange?.("images")}
+              className={`toggle-button ${mediaFilter === "images" ? "active" : ""}`}
+              disabled={isLoadingFolder}
+              title="Show images only"
+              style={{ borderRadius: "4px 0 0 4px" }}
+            >
+              <ImageIcon />
+            </button>
+            <button
+              onClick={() => onMediaFilterChange?.("videos")}
+              className={`toggle-button ${mediaFilter === "videos" ? "active" : ""}`}
+              disabled={isLoadingFolder}
+              title="Show videos only"
+              style={{ borderRadius: "0" }}
+            >
+              <VideoIcon />
+            </button>
+            <button
+              onClick={() => onMediaFilterChange?.("all")}
+              className={`toggle-button ${mediaFilter === "all" ? "active" : ""}`}
+              disabled={isLoadingFolder}
+              title="Show all media"
+              style={{ borderRadius: "0 4px 4px 0" }}
+            >
+              All
+            </button>
+          </div>
+        </div>
 
         <div style={dividerStyle}>
           <div className="video-limit-control" title="Limit rendered VideoCards">

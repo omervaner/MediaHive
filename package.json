@@ -1,31 +1,33 @@
 {
-  "name": "video-swarm",
+  "name": "media-hive",
   "version": "0.5.2",
-  "description": "Desktop application for viewing hundreds of videos simultaneously with advanced masonry layouts and real-time file system monitoring",
+  "description": "Desktop application for viewing images and videos simultaneously with advanced masonry layouts, AI captioning, and real-time file system monitoring",
   "main": "main.js",
-  "homepage": "https://github.com/Cerzi/videoswarm",
+  "homepage": "https://github.com/omervaner/MediaHive",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Cerzi/videoswarm.git"
+    "url": "https://github.com/omervaner/MediaHive.git"
   },
   "bugs": {
-    "url": "https://github.com/Cerzi/videoswarm/issues"
+    "url": "https://github.com/omervaner/MediaHive/issues"
   },
   "keywords": [
+    "media",
+    "image",
     "video",
     "browser",
     "ai-generated",
     "masonry",
     "electron",
     "react",
-    "video-management",
+    "media-management",
     "batch-playback",
-    "content-creation"
+    "content-creation",
+    "ai-captioning"
   ],
   "author": {
-    "name": "cerzi",
-    "url": "https://github.com/cerzi",
-    "email": "bpateman@gmail.com"
+    "name": "omervaner",
+    "url": "https://github.com/omervaner"
   },
   "license": "GPL-3.0-or-later",
   "engines": {
@@ -73,8 +75,8 @@
     "trash": "^9.0.0"
   },
   "build": {
-    "appId": "com.cerzi.videoswarm",
-    "productName": "VideoSwarm",
+    "appId": "com.omervaner.mediahive",
+    "productName": "MediaHive",
     "afterPack": "./scripts/linux-fix.js",
     "directories": {
       "output": "dist",
@@ -111,13 +113,13 @@
           ]
         }
       ],
-      "artifactName": "VideoSwarm-${version}-win-${arch}.${ext}",
-      "icon": "icons/videoswarm.ico",
-      "publisherName": "AI Tools",
+      "artifactName": "MediaHive-${version}-win-${arch}.${ext}",
+      "icon": "icons/mediahive.ico",
+      "publisherName": "omervaner",
       "verifyUpdateCodeSignature": false
     },
     "portable": {
-      "artifactName": "VideoSwarm-${version}-win-${arch}-Portable.${ext}"
+      "artifactName": "MediaHive-${version}-win-${arch}-Portable.${ext}"
     },
     "mac": {
       "target": []
@@ -127,26 +129,26 @@
         "AppImage",
         "deb"
       ],
-      "artifactName": "VideoSwarm-${version}-linux.${ext}",
-      "icon": "icons/videoswarm.png",
+      "artifactName": "MediaHive-${version}-linux.${ext}",
+      "icon": "icons/mediahive.png",
       "category": "Utility",
-      "executableName": "video-swarm",
+      "executableName": "media-hive",
       "desktop": {
-        "Name": "Video Swarm",
-        "Comment": "View hundreds of videos simultaneously",
-        "Categories": "Video;"
+        "Name": "MediaHive",
+        "Comment": "View images and videos simultaneously with AI captioning",
+        "Categories": "Graphics;Video;"
       },
-      "maintainer": "Cerzi <bpateman@gmail.com>"
+      "maintainer": "omervaner"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Video Swarm"
+      "shortcutName": "MediaHive"
     },
     "dmg": {
-      "title": "Video Swarm ${version}",
+      "title": "MediaHive ${version}",
       "backgroundColor": "#1a1a1a",
       "window": {
         "width": 600,

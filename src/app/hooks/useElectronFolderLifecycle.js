@@ -24,6 +24,7 @@ export function useElectronFolderLifecycle({
   setGroupByFolders,
   setRandomSeed,
   setZoomLevelFromSettings,
+  setMediaFilter,
   setVisibleVideos,
   setLoadedVideos,
   setLoadingVideos,
@@ -47,6 +48,7 @@ export function useElectronFolderLifecycle({
     setGroupByFolders,
     setRandomSeed,
     setZoomLevelFromSettings,
+    setMediaFilter,
   });
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export function useElectronFolderLifecycle({
       setGroupByFolders,
       setRandomSeed,
       setZoomLevelFromSettings,
+      setMediaFilter,
     };
   }, [
     setRecursiveMode,
@@ -69,6 +72,7 @@ export function useElectronFolderLifecycle({
     setGroupByFolders,
     setRandomSeed,
     setZoomLevelFromSettings,
+    setMediaFilter,
   ]);
 
   const resetDerivedVideoState = useCallback(() => {
@@ -192,6 +196,7 @@ export function useElectronFolderLifecycle({
       setGroupByFolders: applyGroupByFolders,
       setRandomSeed: applyRandomSeed,
       setZoomLevelFromSettings: applyZoomLevelFromSettings,
+      setMediaFilter: applyMediaFilter,
     } = setterRefs.current;
 
     if (settings.recursiveMode !== undefined)
@@ -215,6 +220,8 @@ export function useElectronFolderLifecycle({
       applyGroupByFolders(settings.groupByFolders);
     if (settings.randomSeed !== undefined)
       applyRandomSeed(settings.randomSeed);
+    if (settings.mediaFilter !== undefined)
+      applyMediaFilter(settings.mediaFilter);
   }, []);
 
   const loadSettingsFromMain = useCallback(

@@ -1,4 +1,5 @@
 // hooks/video-collection/useVideoCollection.js
+import { useMemo } from "react";
 import { useProgressiveList } from "./useProgressiveList";
 import useVideoResourceManager from "./useVideoResourceManager";
 import usePlayOrchestrator from "./usePlayOrchestrator";
@@ -148,14 +149,34 @@ export default function useVideoCollection({
   });
 
   // Layer 3: Play orchestration (Business logic)
+  // Filter out images - they don't need play orchestration
+  // Memoize to prevent infinite re-renders in usePlayOrchestrator
+  const imageIds = useMemo(
+    () =>
+      new Set(
+        videos
+          .filter((v) => v.mediaType === "image")
+          .map((v) => v.id || v.fullPath)
+      ),
+    [videos]
+  );
+  const visibleVideosOnly = useMemo(
+    () => new Set([...visibleVideos].filter((id) => !imageIds.has(id))),
+    [visibleVideos, imageIds]
+  );
+  const loadedVideosOnly = useMemo(
+    () => new Set([...loadedVideos].filter((id) => !imageIds.has(id))),
+    [loadedVideos, imageIds]
+  );
+
   const playingCap =
     cappedDesiredActiveCount && cappedDesiredActiveCount > 0
       ? Math.floor(cappedDesiredActiveCount)
       : limitedVisibleCount;
   const { playingSet, markHover, reportPlayError, reportStarted } =
     usePlayOrchestrator({
-      visibleIds: visibleVideos,
-      loadedIds: loadedVideos,
+      visibleIds: visibleVideosOnly,
+      loadedIds: loadedVideosOnly,
       maxPlaying:
         Number.isFinite(playingCap) && playingCap > 0
           ? playingCap

@@ -67,7 +67,13 @@ Tasks:
 - [ ] Create GitHub repo, push initial commit
 
 ### Phase 2: Add Image Support
-**Goal:** Display images alongside videos in the same masonry grid
+**Goal:** Display images alongside videos with a mode toggle
+
+**UI Design Decision:** 
+- Add toggle buttons in header: `[Images] [Videos] [All]`
+- Backend loads ALL media, frontend filters by mode
+- Mode persisted in settings
+- Default to last-used mode
 
 Key Changes:
 1. `main.js` - Extend `isVideoFile()` to `isMediaFile()`
