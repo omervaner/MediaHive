@@ -572,3 +572,31 @@ For image processing (blur detection, pHash), we may need:
 - Or pure JS implementation using canvas (slower but no native deps)
 
 Ask before adding any new dependencies.
+
+---
+
+## Phase 3: AI Captioning Integration
+
+**📄 See `docs/PHASE3-AI-CAPTIONING.md` for full specification.**
+
+### Summary
+- Ollama + Qwen3-VL for local AI captioning (privacy-first, unlimited usage)
+- Model options with clear download size warnings:
+  - `qwen3-vl:4b` (~3.3 GB) - Fast, 8GB+ RAM
+  - `qwen3-vl:8b` (~6.1 GB) - Recommended, 16GB+ RAM
+  - `qwen3-vl:32b` (~20 GB) - Maximum quality, 32GB+ RAM
+- First-run setup dialog prompts user to download model
+- Batch captioning with progress UI
+- Caption display and editing in details panel
+- Integrates with Dataset Export (AI captions → .txt files)
+
+### Prerequisites
+- Phase 2.5 Dataset Export complete
+- User has Ollama installed (ollama.com)
+
+### Implementation Steps
+1. Ollama Setup & Model Management (detection, download with progress)
+2. Caption Service (generate captions/tags via Ollama API)
+3. Batch Captioning UI (progress, results)
+4. Caption Display & Editing
+5. Storage integration

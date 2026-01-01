@@ -22,6 +22,7 @@ const { getEmbeddedDragIcon } = require("./main/drag-icon");
 const { getVideoDimensions } = require("./main/videoDimensions");
 const { getImageDimensions } = require("./main/imageDimensions");
 const { detectScreenshot } = require("./main/screenshotDetector");
+const { exportDataset } = require("./main/datasetExporter");
 require("./main/ipc-trash")(ipcMain);
 const { initMetadataStore, getMetadataStore, resetDatabase } = require("./main/database");
 const profileManager = require("./main/profile-manager");
@@ -1810,6 +1811,35 @@ ipcMain.handle("stop-folder-watch", async () => {
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message || String(e) };
+  }
+});
+
+// Dataset export handlers
+ipcMain.handle("dataset:pick-folder", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory", "createDirectory"],
+    title: "Select Export Destination",
+    buttonLabel: "Select Folder",
+  });
+  if (result.canceled || !result.filePaths.length) {
+    return null;
+  }
+  return result.filePaths[0];
+});
+
+ipcMain.handle("dataset:export", async (_event, options) => {
+  try {
+    const result = await exportDataset({
+      ...options,
+      onProgress: (current, total) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("dataset-export:progress", { current, total });
+        }
+      },
+    });
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message || String(error) };
   }
 });
 

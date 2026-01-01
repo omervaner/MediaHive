@@ -90,6 +90,14 @@ const FilterIcon = (props) => (
   </Icon>
 );
 
+const ExportIcon = (props) => (
+  <Icon {...props}>
+    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </Icon>
+);
+
 const ImageIcon = (props) => (
   <Icon {...props}>
     <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -135,6 +143,8 @@ export default function HeaderBar({
   filtersButtonRef,
   mediaFilter = "all",
   onMediaFilterChange,
+  onExportClick,
+  imageCount = 0,
 }) {
   const isElectron = !!window.electronAPI?.isElectron;
 
@@ -348,6 +358,19 @@ export default function HeaderBar({
               )}
             </button>
           </div>
+
+          {isElectron && (
+            <button
+              onClick={onExportClick}
+              disabled={isLoadingFolder || imageCount === 0}
+              className="toggle-button"
+              title={imageCount > 0 ? `Export ${imageCount} images` : "No images to export"}
+              type="button"
+            >
+              <ExportIcon />
+              <span className="filters-button-label">Export</span>
+            </button>
+          )}
 
           <SupportLink
             className="donate-button"

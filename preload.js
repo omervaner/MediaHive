@@ -232,6 +232,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("recent:remove", folderPath),
     clear: async () => ipcRenderer.invoke("recent:clear"),
   },
+
+  dataset: {
+    pickFolder: async () => ipcRenderer.invoke("dataset:pick-folder"),
+    export: async (options) => ipcRenderer.invoke("dataset:export", options),
+    onProgress: (callback) => {
+      const handler = (_event, progress) => callback(progress);
+      ipcRenderer.on("dataset-export:progress", handler);
+      return () => ipcRenderer.removeListener("dataset-export:progress", handler);
+    },
+  },
 });
 
 contextBridge.exposeInMainWorld('appMem', {

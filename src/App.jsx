@@ -17,6 +17,7 @@ import DebugSummary from "./components/DebugSummary";
 import AboutDialog from "./components/AboutDialog";
 import DataLocationDialog from "./components/DataLocationDialog";
 import ProfilePromptDialog from "./components/ProfilePromptDialog";
+import ExportDialog from "./components/ExportDialog";
 
 import { useFullScreenModal } from "./hooks/useFullScreenModal";
 import { useVideoCollection } from "./hooks/video-collection";
@@ -153,6 +154,7 @@ function App() {
   const [isDataLocationOpen, setDataLocationOpen] = useState(false);
   const [profilePromptRequest, setProfilePromptRequest] = useState(null);
   const [profilePromptValue, setProfilePromptValue] = useState("");
+  const [isExportDialogOpen, setExportDialogOpen] = useState(false);
 
   // Video collection state
   const [actualPlaying, setActualPlaying] = useState(new Set());
@@ -359,6 +361,12 @@ function App() {
   });
 
   const totalVideoCount = videos.length;
+
+  // Count images in filtered results for export
+  const filteredImageCount = useMemo(
+    () => filteredVideos.filter((v) => v.mediaType === "image").length,
+    [filteredVideos]
+  );
   const renderLimitValue = useMemo(
     () => resolveRenderLimit(renderLimitStep, totalVideoCount),
     [renderLimitStep, totalVideoCount]
@@ -1420,6 +1428,8 @@ function App() {
             filtersButtonRef={filtersButtonRef}
             mediaFilter={mediaFilter}
             onMediaFilterChange={handleMediaFilterChange}
+            onExportClick={() => setExportDialogOpen(true)}
+            imageCount={filteredImageCount}
           />
 
           {isFiltersOpen && (
@@ -1448,6 +1458,12 @@ function App() {
               onCancel={handleProfilePromptCancel}
             />
           ) : null}
+
+          <ExportDialog
+            open={isExportDialogOpen}
+            onClose={() => setExportDialogOpen(false)}
+            files={filteredVideos}
+          />
 
           {filtersActiveCount > 0 && (
             <div className="filters-summary">
