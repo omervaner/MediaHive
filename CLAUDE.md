@@ -32,23 +32,22 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 ## Current Work: Settings Expansion ✅ COMPLETE
 
 ### Completed
-- Clean menu-style Settings dialog with three navigation items
+- Clean menu-style Settings dialog with four navigation items
 - **AI Captioning** sub-modal: Model config, endpoint editing, installed models management
 - **Data Management** sub-modal: Cache stats/clear, database stats/clear, recent folders clear, open data folder
+- **Keyboard Shortcuts** sub-modal: Read-only reference grouped by category (Navigation, Selection, File Ops, Zoom)
 - **About** sub-modal: App name, version, description, GitHub link, tech stack
 - **Exit App** button (subtle, bottom-left)
 - Sub-modals open on top of main Settings dialog
 - Escape key handling respects modal stack
+- Platform-aware modifier key display (⌘ on Mac, Ctrl on Windows/Linux)
 
 ### Pending (Future Work)
 
-#### Default Behaviors
+#### Default Behaviors ⏸️ ON HOLD
 Save user preferences that persist across sessions:
 - Default sort order, group by folders, recursive loading
 - Default media filter, show filenames, zoom level
-
-#### Keyboard Shortcuts
-Reference panel showing all available hotkeys
 
 ---
 

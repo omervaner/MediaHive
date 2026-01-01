@@ -10,6 +10,10 @@ const formatBytes = (bytes) => {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 };
 
+// Detect platform for displaying correct modifier key
+const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const modKey = isMac ? "⌘" : "Ctrl";
+
 // ============================================
 // Sub-Modal: AI Captioning Configuration
 // ============================================
@@ -380,6 +384,73 @@ function DataManagementModal({ open, onClose }) {
 }
 
 // ============================================
+// Sub-Modal: Keyboard Shortcuts
+// ============================================
+function KeyboardShortcutsModal({ open, onClose }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const shortcuts = [
+    { category: "Navigation", items: [
+      { keys: "Enter", action: "Open selected in fullscreen" },
+      { keys: "Esc", action: "Close fullscreen / dialogs" },
+    ]},
+    { category: "Selection", items: [
+      { keys: `${modKey} + Click`, action: "Toggle item selection" },
+      { keys: "Shift + Click", action: "Select range" },
+    ]},
+    { category: "File Operations", items: [
+      { keys: `${modKey} + C`, action: "Copy file path" },
+      { keys: "Delete", action: "Move to trash" },
+    ]},
+    { category: "Zoom", items: [
+      { keys: "+ / =", action: "Zoom in" },
+      { keys: "-", action: "Zoom out" },
+      { keys: `${modKey} + Scroll`, action: "Zoom in/out" },
+    ]},
+  ];
+
+  return (
+    <div className="settings-submodal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div className="settings-submodal settings-submodal--shortcuts" role="dialog" aria-modal="true">
+        <header className="settings-submodal__header">
+          <h3>Keyboard Shortcuts</h3>
+          <button className="settings-submodal__close" onClick={onClose} aria-label="Close">×</button>
+        </header>
+
+        <div className="settings-submodal__body shortcuts-modal__body">
+          {shortcuts.map((group) => (
+            <div key={group.category} className="shortcuts-modal__group">
+              <h4 className="shortcuts-modal__category">{group.category}</h4>
+              <div className="shortcuts-modal__list">
+                {group.items.map((item, idx) => (
+                  <div key={idx} className="shortcuts-modal__item">
+                    <kbd className="shortcuts-modal__keys">{item.keys}</kbd>
+                    <span className="shortcuts-modal__action">{item.action}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <footer className="settings-submodal__footer">
+          <button className="settings-submodal__btn settings-submodal__btn--primary" onClick={onClose}>Done</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // Sub-Modal: About
 // ============================================
 function AboutModal({ open, onClose }) {
@@ -452,9 +523,10 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
   const dialogRef = useRef(null);
   const [showAIConfig, setShowAIConfig] = useState(false);
   const [showDataMgmt, setShowDataMgmt] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
-  const anySubModalOpen = showAIConfig || showDataMgmt || showAbout;
+  const anySubModalOpen = showAIConfig || showDataMgmt || showShortcuts || showAbout;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -484,6 +556,7 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
     if (!open) {
       setShowAIConfig(false);
       setShowDataMgmt(false);
+      setShowShortcuts(false);
       setShowAbout(false);
     }
   }, [open]);
@@ -531,6 +604,17 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
               <span className="settings-menu__item-arrow">›</span>
             </button>
 
+            <button className="settings-menu__item" onClick={() => setShowShortcuts(true)}>
+              <div className="settings-menu__item-content">
+                <span className="settings-menu__item-icon">⌨️</span>
+                <div className="settings-menu__item-text">
+                  <span className="settings-menu__item-title">Keyboard Shortcuts</span>
+                  <span className="settings-menu__item-subtitle">View all hotkeys</span>
+                </div>
+              </div>
+              <span className="settings-menu__item-arrow">›</span>
+            </button>
+
             <button className="settings-menu__item" onClick={() => setShowAbout(true)}>
               <div className="settings-menu__item-content">
                 <span className="settings-menu__item-icon">ℹ️</span>
@@ -571,6 +655,10 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
       <DataManagementModal
         open={showDataMgmt}
         onClose={() => setShowDataMgmt(false)}
+      />
+      <KeyboardShortcutsModal
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
       />
       <AboutModal
         open={showAbout}
