@@ -6,6 +6,8 @@ import {
   sanitizeExactRating,
   formatRatingLabel,
   useFiltersActiveCount,
+  matchesResolution,
+  matchesAspectRatio,
 } from "../filters/filtersUtils";
 
 const resolveValue = (value, fallback) =>
@@ -16,12 +18,16 @@ const normalizeFiltersDraft = (draft, prev) => {
   const excludeTagsRaw = resolveValue(draft?.excludeTags, prev.excludeTags);
   const minRatingRaw = resolveValue(draft?.minRating, prev.minRating);
   const exactRatingRaw = resolveValue(draft?.exactRating, prev.exactRating);
+  const minResolutionRaw = resolveValue(draft?.minResolution, prev.minResolution);
+  const aspectRatioRaw = resolveValue(draft?.aspectRatio, prev.aspectRatio);
 
   return {
     includeTags: normalizeTagList(includeTagsRaw),
     excludeTags: normalizeTagList(excludeTagsRaw),
     minRating: sanitizeMinRating(minRatingRaw),
     exactRating: sanitizeExactRating(exactRatingRaw),
+    minResolution: minResolutionRaw,
+    aspectRatio: aspectRatioRaw,
   };
 };
 
@@ -46,6 +52,8 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
     const excludeTags = filters.excludeTags ?? [];
     const minRating = sanitizeMinRating(filters.minRating);
     const exactRating = sanitizeExactRating(filters.exactRating);
+    const minResolution = filters.minResolution ?? null;
+    const aspectRatio = filters.aspectRatio ?? null;
 
     const includeSet = includeTags.length
       ? new Set(includeTags.map((tag) => tag.toLowerCase()))
@@ -54,7 +62,15 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
       ? new Set(excludeTags.map((tag) => tag.toLowerCase()))
       : null;
 
-    if (!includeSet && !excludeSet && minRating === null && exactRating === null) {
+    const hasAnyFilter =
+      includeSet ||
+      excludeSet ||
+      minRating !== null ||
+      exactRating !== null ||
+      minResolution !== null ||
+      aspectRatio !== null;
+
+    if (!hasAnyFilter) {
       return videos;
     }
 
@@ -82,11 +98,19 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
       const ratingValue = Number.isFinite(video.rating) ? Math.round(video.rating) : null;
 
       if (exactRating !== null) {
-        return (ratingValue ?? null) === exactRating;
+        if ((ratingValue ?? null) !== exactRating) return false;
+      } else if (minRating !== null) {
+        if ((ratingValue ?? 0) < minRating) return false;
       }
 
-      if (minRating !== null) {
-        return (ratingValue ?? 0) >= minRating;
+      // Resolution filter
+      if (!matchesResolution(video, minResolution)) {
+        return false;
+      }
+
+      // Aspect ratio filter
+      if (!matchesAspectRatio(video, aspectRatio)) {
+        return false;
       }
 
       return true;

@@ -68,13 +68,17 @@ mediaType: isImageFile(filePath) ? 'image' : 'video',
 **Files:** `main/imageDimensions.js` (NEW), `main.js`
 
 1. Create `main/imageDimensions.js`:
-   - Parse JPEG/PNG/WebP/GIF headers to extract dimensions
-   - Use buffer reading (no external dependencies)
+   - Uses `sharp` package for reliable dimension extraction
+   - Handles EXIF orientation (tags 5-8 swap width/height for 90° rotations)
+   - Critical for iPhone photos which store portrait images as landscape + EXIF rotation
+   - Only caches successful results (allows retry on failure)
    - Export `getImageDimensions(filePath)` → `{ width, height, aspectRatio }`
 
 2. Update `createVideoFileObject()` in main.js:
    - If `isImageFile(filePath)`: call `getImageDimensions()`
    - Else: call existing `getVideoDimensions()`
+
+**Dependencies added:** `sharp` (image processing)
 
 ---
 
@@ -185,5 +189,386 @@ Filter images out of play orchestration by filtering visibleVideos and loadedVid
 - [ ] Verify fullscreen works for both types
 - [ ] Verify tagging/rating works for both types
 - [ ] Verify file watcher detects new images
-- [ ] Verify filter toggle switches between modes
-- [ ] Verify filter preference persists after restart
+- [x] Verify filter toggle switches between modes
+- [x] Verify filter preference persists after restart
+
+---
+
+## Phase 2.5: Filtering & Analysis Features
+
+### Overview
+Add advanced filtering, duplicate detection, quality analysis, and dataset export for LoRA training workflows.
+
+---
+
+### Step 1: Resolution & Aspect Ratio Filter ✅ COMPLETE
+**Files:** `src/components/FiltersPopover.jsx`, `src/app/filters/filtersUtils.js`, `src/app/hooks/useFilterState.js`
+
+**Implemented:**
+1. Added to `filtersUtils.js`:
+   - `RESOLUTION_PRESETS`: All, 512+, 768+, 1024+, 2K+, 4K+
+   - `ASPECT_RATIO_OPTIONS`: All, Square (0.9-1.1), Portrait (<0.9), Landscape (>1.1)
+   - `matchesResolution(file, minRes)` - checks short edge >= minRes
+   - `matchesAspectRatio(file, category)` - checks AR category
+   - Updated `createDefaultFilters()` with `minResolution` and `aspectRatio`
+   - Updated `useFiltersActiveCount()` to count new filters
+
+2. Added to `useFilterState.js`:
+   - Extended `normalizeFiltersDraft()` for new filter fields
+   - Added resolution and aspect ratio checks in `filteredVideos` useMemo
+
+3. Added to `FiltersPopover.jsx`:
+   - Resolution section with preset buttons
+   - Aspect Ratio section with category buttons
+   - Handlers for both filter types
+
+**Note:** Requires EXIF-aware dimension extraction (Step 2 of Phase 2) to work correctly with iPhone photos. The `sharp` package handles EXIF orientation so portrait iPhone photos are correctly identified.
+
+---
+
+### Step 2: Duplicate Finder
+**Files:** `main/duplicateFinder.js` (NEW), `main.js`, `src/components/DuplicatesPanel.jsx` (NEW)
+
+**Goal:** Find visually similar images using perceptual hashing. Essential for cleaning datasets.
+
+**Backend - Perceptual Hashing:**
+1. Create `main/duplicateFinder.js`:
+   - Implement pHash (perceptual hash) algorithm:
+     - Resize image to 32x32 grayscale
+     - Apply DCT (discrete cosine transform)
+     - Reduce to 8x8 by keeping top-left (low frequencies)
+     - Generate 64-bit hash based on median comparison
+   - Compare hashes using Hamming distance
+   - Threshold: <5 bits different = likely duplicate
+   
+2. Store hash in database:
+   - Add `phash TEXT` column to files table
+   - Compute on first index, cache for future
+
+3. IPC handlers:
+   - `duplicates:compute-hashes` - batch compute for folder
+   - `duplicates:find-groups` - return groups of similar files
+
+**Frontend - Duplicates UI:**
+1. Create `DuplicatesPanel.jsx`:
+   - "Scan for Duplicates" button
+   - Progress bar during scan
+   - Display groups of duplicates
+   - For each group: show thumbnails, let user pick "keeper"
+   - Bulk actions: delete others, move to folder
+
+2. Visual indicators:
+   - Badge on cards that have duplicates
+   - Filter: "Show only duplicates"
+
+**Algorithm detail (pHash):**
+```js
+async function computePHash(imagePath) {
+  // 1. Load and resize to 32x32 grayscale
+  // 2. Apply 32x32 DCT
+  // 3. Take top-left 8x8 (low frequency components)
+  // 4. Calculate median of 64 values
+  // 5. Generate 64-bit hash: bit=1 if value > median
+  // 6. Return as hex string (16 chars)
+}
+
+function hammingDistance(hash1, hash2) {
+  // XOR and count bits
+  let diff = 0;
+  for (let i = 0; i < hash1.length; i++) {
+    const x = parseInt(hash1[i], 16) ^ parseInt(hash2[i], 16);
+    diff += x.toString(2).split('1').length - 1;
+  }
+  return diff;
+}
+```
+
+---
+
+### Step 3: Screenshot Detector
+**Files:** `main/screenshotDetector.js` (NEW), `main.js`
+
+**Goal:** Automatically identify screenshots (phone/desktop) without AI. Useful for filtering out non-generated content.
+
+**Detection Methods (combine for confidence score):**
+
+1. **Filename patterns** (high confidence):
+   ```js
+   const SCREENSHOT_PATTERNS = [
+     /^screenshot/i,
+     /^screen shot/i,
+     /^IMG_\d+/i,           // iOS
+     /^\d{4}-\d{2}-\d{2}/,  // Android (date prefix)
+     /^Simulator Screen/i,
+     /^Capture/i,
+   ];
+   ```
+
+2. **Exact resolution matches** (high confidence):
+   ```js
+   const KNOWN_SCREEN_RESOLUTIONS = [
+     // Desktop
+     [1920, 1080], [2560, 1440], [3840, 2160], [1440, 900], [1680, 1050],
+     // iPhone
+     [1170, 2532], [1284, 2778], [1290, 2796], [1179, 2556],
+     // Android common
+     [1080, 2400], [1080, 2340], [1440, 3200],
+   ];
+   ```
+
+3. **Aspect ratio patterns** (medium confidence):
+   - Phone screenshots: very tall (AR < 0.5 or > 2.0)
+   - Exact 16:9, 16:10, 4:3 ratios
+
+4. **Edge detection** (medium confidence):
+   - Screenshots have many straight horizontal/vertical edges
+   - Detect using Sobel filter, count edge pixels
+   - High ratio of H/V edges vs diagonal = likely screenshot
+
+5. **Status bar detection** (optional, more complex):
+   - Top 5% of image: check for solid color band
+   - Look for time pattern (HH:MM) in that region
+
+**Implementation:**
+```js
+function detectScreenshot(filePath, dimensions, fileName) {
+  let score = 0;
+  
+  // Filename check (+40)
+  if (SCREENSHOT_PATTERNS.some(p => p.test(fileName))) score += 40;
+  
+  // Exact resolution match (+50)
+  if (isKnownScreenRes(dimensions.width, dimensions.height)) score += 50;
+  
+  // Extreme aspect ratio (+20)
+  if (dimensions.aspectRatio < 0.5 || dimensions.aspectRatio > 2.0) score += 20;
+  
+  return {
+    isScreenshot: score >= 50,
+    confidence: Math.min(score, 100),
+    reasons: [...]
+  };
+}
+```
+
+**Storage:**
+- Add `isScreenshot BOOLEAN`, `screenshotConfidence INTEGER` to files table
+- Compute during indexing
+
+**UI:**
+- Filter toggle: "Hide screenshots" / "Show only screenshots"
+- Visual badge on screenshot cards
+
+---
+
+### Step 4: Quality Scorer
+**Files:** `main/qualityScorer.js` (NEW), `main.js`
+
+**Goal:** Automated image quality assessment to filter out blurry, dark, or low-quality generations.
+
+**Quality Metrics:**
+
+1. **Blur Detection (Laplacian Variance):**
+   - Apply Laplacian filter (edge detection)
+   - Calculate variance of result
+   - Low variance = blurry image
+   ```js
+   // Laplacian kernel: [0,1,0], [1,-4,1], [0,1,0]
+   // Variance < 100 = blurry, > 500 = sharp
+   ```
+
+2. **Exposure Analysis (Histogram):**
+   - Calculate luminance histogram
+   - Check distribution:
+     - Underexposed: >50% pixels below 30
+     - Overexposed: >50% pixels above 225
+     - Good: bell curve centered around 128
+   ```js
+   function exposureScore(histogram) {
+     const dark = histogram.slice(0, 30).reduce((a,b) => a+b, 0);
+     const light = histogram.slice(225).reduce((a,b) => a+b, 0);
+     const total = histogram.reduce((a,b) => a+b, 0);
+     // Returns -1 (under), 0 (good), 1 (over)
+   }
+   ```
+
+3. **Noise Detection:**
+   - High-frequency energy in smooth regions
+   - Compare original vs gaussian-blurred version
+   - Large difference in "flat" areas = noise
+
+4. **Resolution Quality:**
+   - Penalize very low resolution (<512 on short edge)
+   - Detect upscaled images (look for interpolation artifacts)
+
+**Composite Score:**
+```js
+function computeQualityScore(imagePath) {
+  const blur = getBlurScore(imagePath);        // 0-100
+  const exposure = getExposureScore(imagePath); // 0-100
+  const noise = getNoiseScore(imagePath);       // 0-100
+  const resolution = getResolutionScore(imagePath); // 0-100
+  
+  // Weighted average
+  const overall = (blur * 0.4) + (exposure * 0.25) + (noise * 0.2) + (resolution * 0.15);
+  
+  return {
+    overall,
+    blur,
+    exposure, 
+    noise,
+    resolution,
+    grade: overall > 80 ? 'A' : overall > 60 ? 'B' : overall > 40 ? 'C' : 'D'
+  };
+}
+```
+
+**Storage:**
+- Add `qualityScore INTEGER`, `qualityGrade TEXT` to files table
+- Compute on-demand (expensive) or background process
+
+**UI:**
+- Quality badge on cards (A/B/C/D or color indicator)
+- Filter: "A only", "B+", "Hide D grade"
+- Sort by quality score
+- Bulk action: "Delete all D grade"
+
+---
+
+### Step 5: Dataset Export
+**Files:** `main/datasetExporter.js` (NEW), `src/components/ExportDialog.jsx` (NEW)
+
+**Goal:** Export selected/filtered images to a LoRA training-ready folder structure.
+
+**Export Options Dialog:**
+```
+┌─────────────────────────────────────────┐
+│ Export Dataset                          │
+├─────────────────────────────────────────┤
+│ Source: 47 images (filtered selection)  │
+│                                         │
+│ Destination: [Browse...] /path/to/dest  │
+│                                         │
+│ ☑ Include caption files (.txt)          │
+│   Caption source: ○ Tags  ○ AI caption  │
+│                                         │
+│ ☐ Resize images                         │
+│   Target: [1024] px (short edge)        │
+│                                         │
+│ ☑ Rename sequentially                   │
+│   Prefix: [dataset_] → dataset_001.jpg  │
+│                                         │
+│ ☐ Generate metadata file                │
+│   Format: ○ dataset.toml (musubi)       │
+│           ○ metadata.json (kohya)       │
+│                                         │
+│ File handling: ○ Copy  ○ Move           │
+│                                         │
+│ [Cancel]                    [Export]    │
+└─────────────────────────────────────────┘
+```
+
+**Backend - Export Logic:**
+```js
+async function exportDataset(options) {
+  const {
+    files,           // Array of file objects to export
+    destination,     // Target folder path
+    includeCaptions, // Boolean
+    captionSource,   // 'tags' | 'ai'
+    resize,          // null or { shortEdge: 1024 }
+    rename,          // null or { prefix: 'dataset_' }
+    generateMeta,    // null or 'toml' | 'json'
+    fileHandling,    // 'copy' | 'move'
+  } = options;
+  
+  // Create destination folder
+  await fs.mkdir(destination, { recursive: true });
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const newName = rename 
+      ? `${rename.prefix}${String(i + 1).padStart(3, '0')}${file.extension}`
+      : file.name;
+    
+    // Copy/move image
+    const destPath = path.join(destination, newName);
+    if (resize) {
+      await resizeAndSave(file.fullPath, destPath, resize.shortEdge);
+    } else {
+      await fs[fileHandling](file.fullPath, destPath);
+    }
+    
+    // Create caption file
+    if (includeCaptions) {
+      const caption = captionSource === 'tags' 
+        ? file.tags.join(', ')
+        : file.aiCaption || '';
+      const captionPath = destPath.replace(/\.[^.]+$/, '.txt');
+      await fs.writeFile(captionPath, caption);
+    }
+    
+    // Progress callback
+    onProgress((i + 1) / files.length);
+  }
+  
+  // Generate metadata file
+  if (generateMeta === 'toml') {
+    await generateMusubiToml(destination, files);
+  } else if (generateMeta === 'json') {
+    await generateKohyaJson(destination, files);
+  }
+}
+```
+
+**musubi-tuner TOML format:**
+```toml
+[general]
+shuffle_caption = true
+caption_extension = ".txt"
+keep_tokens = 1
+
+[[datasets]]
+resolution = 1024
+batch_size = 1
+
+  [[datasets.subsets]]
+  image_dir = "."
+  num_repeats = 10
+```
+
+**kohya metadata.json format:**
+```json
+{
+  "dataset_001.jpg": { "caption": "tag1, tag2, tag3" },
+  "dataset_002.jpg": { "caption": "tag1, tag4" }
+}
+```
+
+**UI Flow:**
+1. User filters/selects images
+2. Click "Export Dataset" button (in header or context menu)
+3. ExportDialog opens with options
+4. User configures and clicks Export
+5. Progress modal during export
+6. Success: "Exported 47 images to /path/to/dest" with "Open Folder" button
+
+---
+
+## Phase 2.5 Implementation Order
+
+1. **Resolution/AR Filter** - Easiest, pure UI, data already exists
+2. **Screenshot Detector** - Medium, no heavy computation
+3. **Dataset Export** - Medium, most immediately useful for your workflow
+4. **Duplicate Finder** - Medium-hard, needs pHash implementation
+5. **Quality Scorer** - Hardest, needs image processing
+
+---
+
+## Dependencies Note
+
+For image processing (blur detection, pHash), we may need:
+- `sharp` - Fast image processing (resize, grayscale) - already common in Electron apps
+- Or pure JS implementation using canvas (slower but no native deps)
+
+Ask before adding any new dependencies.

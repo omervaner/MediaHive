@@ -272,8 +272,8 @@ async function createVideoFileObject(filePath, baseFolderPath) {
         }
       }
 
+      // Compute dimensions if not cached
       if (!isValidDimensions(dimensions)) {
-        // Use appropriate dimension extractor based on file type
         const computed = isImageFile(filePath)
           ? await getImageDimensions(filePath, stats)
           : await getVideoDimensions(filePath, stats);

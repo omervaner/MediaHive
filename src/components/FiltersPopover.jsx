@@ -1,4 +1,8 @@
 import React, { useMemo, useState, forwardRef } from "react";
+import {
+  RESOLUTION_PRESETS,
+  ASPECT_RATIO_OPTIONS,
+} from "../app/filters/filtersUtils";
 import "./FiltersPopover.css";
 
 const MIN_RATING_OPTIONS = [
@@ -53,6 +57,8 @@ const FiltersPopover = forwardRef(
     const minRating = filters?.minRating ?? null;
     const exactRating =
       filters?.exactRating === 0 ? 0 : filters?.exactRating ?? null;
+    const minResolution = filters?.minResolution ?? null;
+    const aspectRatio = filters?.aspectRatio ?? null;
 
     const [tagQuery, setTagQuery] = useState("");
 
@@ -179,6 +185,20 @@ const FiltersPopover = forwardRef(
           minRating: nextValue !== null ? null : prev.minRating ?? null,
         };
       });
+    };
+
+    const handleResolutionChange = (value) => {
+      onChange((prev) => ({
+        ...prev,
+        minResolution: value === prev.minResolution ? null : value,
+      }));
+    };
+
+    const handleAspectRatioChange = (value) => {
+      onChange((prev) => ({
+        ...prev,
+        aspectRatio: value === prev.aspectRatio ? null : value,
+      }));
     };
 
     return (
@@ -346,6 +366,57 @@ const FiltersPopover = forwardRef(
                         value === null || value === exactRating ? null : value
                       )
                     }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="filters-section">
+          <header className="filters-section__title">Resolution</header>
+          <div className="filters-rating-group">
+            <span className="filters-chip-group__label">Minimum</span>
+            <div className="filters-rating-row">
+              {RESOLUTION_PRESETS.map(({ value, label }) => {
+                const isActive =
+                  (value === null && minResolution === null) ||
+                  value === minResolution;
+                return (
+                  <button
+                    key={`res-${value ?? "all"}`}
+                    type="button"
+                    className={`filters-pill ${
+                      isActive ? "filters-pill--active" : ""
+                    }`}
+                    onClick={() => handleResolutionChange(value)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="filters-section">
+          <header className="filters-section__title">Aspect Ratio</header>
+          <div className="filters-rating-group">
+            <div className="filters-rating-row">
+              {ASPECT_RATIO_OPTIONS.map(({ value, label }) => {
+                const isActive =
+                  (value === null && aspectRatio === null) ||
+                  value === aspectRatio;
+                return (
+                  <button
+                    key={`ar-${value ?? "all"}`}
+                    type="button"
+                    className={`filters-pill ${
+                      isActive ? "filters-pill--active" : ""
+                    }`}
+                    onClick={() => handleAspectRatioChange(value)}
                   >
                     {label}
                   </button>

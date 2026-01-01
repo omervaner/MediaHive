@@ -5,7 +5,51 @@ export const createDefaultFilters = () => ({
   excludeTags: [],
   minRating: null,
   exactRating: null,
+  minResolution: null, // null | 512 | 768 | 1024 | 2048 | 3840
+  aspectRatio: null,   // null | 'square' | 'portrait' | 'landscape'
 });
+
+// Resolution presets (minimum short edge)
+export const RESOLUTION_PRESETS = [
+  { value: null, label: "All" },
+  { value: 512, label: "512+" },
+  { value: 768, label: "768+" },
+  { value: 1024, label: "1024+" },
+  { value: 2048, label: "2K+" },
+  { value: 3840, label: "4K+" },
+];
+
+// Aspect ratio categories
+export const ASPECT_RATIO_OPTIONS = [
+  { value: null, label: "All" },
+  { value: "square", label: "Square" },
+  { value: "portrait", label: "Portrait" },
+  { value: "landscape", label: "Landscape" },
+];
+
+export const matchesResolution = (file, minRes) => {
+  if (minRes === null || minRes === undefined) return true;
+  // Dimensions are stored in file.dimensions.width/height
+  const dims = file.dimensions;
+  if (!dims) return true; // No dimension data, don't filter out
+  const width = Number(dims.width) || 0;
+  const height = Number(dims.height) || 0;
+  if (width === 0 || height === 0) return true; // Invalid dimensions, don't filter out
+  const shortEdge = Math.min(width, height);
+  return shortEdge >= minRes;
+};
+
+export const matchesAspectRatio = (file, category) => {
+  if (category === null || category === undefined) return true;
+
+  const ar = Number(file.aspectRatio);
+  if (!Number.isFinite(ar) || ar <= 0) return true; // No AR data, don't filter out
+
+  if (category === "square") return ar >= 0.9 && ar <= 1.1;
+  if (category === "portrait") return ar < 0.9;
+  if (category === "landscape") return ar > 1.1;
+  return true;
+};
 
 export const normalizeTagList = (tags) =>
   Array.from(
@@ -51,5 +95,9 @@ export const useFiltersActiveCount = (filters) =>
         : filters.minRating !== null && filters.minRating !== undefined
         ? 1
         : 0;
-    return includeCount + excludeCount + ratingCount;
+    const resolutionCount =
+      filters.minResolution !== null && filters.minResolution !== undefined ? 1 : 0;
+    const aspectRatioCount =
+      filters.aspectRatio !== null && filters.aspectRatio !== undefined ? 1 : 0;
+    return includeCount + excludeCount + ratingCount + resolutionCount + aspectRatioCount;
   }, [filters]);
