@@ -21,6 +21,7 @@ const { source: dataLocationSource } = dataLocationManager.bootstrap(process.arg
 const { getEmbeddedDragIcon } = require("./main/drag-icon");
 const { getVideoDimensions } = require("./main/videoDimensions");
 const { getImageDimensions } = require("./main/imageDimensions");
+const { detectScreenshot } = require("./main/screenshotDetector");
 require("./main/ipc-trash")(ipcMain);
 const { initMetadataStore, getMetadataStore, resetDatabase } = require("./main/database");
 const profileManager = require("./main/profile-manager");
@@ -291,13 +292,20 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       );
     }
 
+    // Detect screenshots for images
+    const isImage = isImageFile(filePath);
+    let screenshotInfo = { isScreenshot: false, confidence: 0 };
+    if (isImage && dimensions) {
+      screenshotInfo = detectScreenshot(filePath, dimensions, fileName);
+    }
+
     return {
       id: filePath,
       name: fileName,
       fullPath: filePath,
       relativePath: path.relative(baseFolderPath, filePath),
       extension: ext,
-      mediaType: isImageFile(filePath) ? 'image' : 'video',
+      mediaType: isImage ? 'image' : 'video',
       size: stats.size,
       dateModified: stats.mtime,
       dateCreated: stats.birthtime,
@@ -308,6 +316,8 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       fingerprint,
       tags,
       rating,
+      isScreenshot: screenshotInfo.isScreenshot,
+      screenshotConfidence: screenshotInfo.confidence,
       dimensions: dimensions
         ? {
           width: Math.round(dimensions.width),

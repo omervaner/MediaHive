@@ -7,6 +7,7 @@ export const createDefaultFilters = () => ({
   exactRating: null,
   minResolution: null, // null | 512 | 768 | 1024 | 2048 | 3840
   aspectRatio: null,   // null | 'square' | 'portrait' | 'landscape'
+  screenshotFilter: null, // null | 'hide' | 'only'
 });
 
 // Resolution presets (minimum short edge)
@@ -25,6 +26,13 @@ export const ASPECT_RATIO_OPTIONS = [
   { value: "square", label: "Square" },
   { value: "portrait", label: "Portrait" },
   { value: "landscape", label: "Landscape" },
+];
+
+// Screenshot filter options
+export const SCREENSHOT_FILTER_OPTIONS = [
+  { value: null, label: "All" },
+  { value: "hide", label: "Hide Screenshots" },
+  { value: "only", label: "Only Screenshots" },
 ];
 
 export const matchesResolution = (file, minRes) => {
@@ -48,6 +56,16 @@ export const matchesAspectRatio = (file, category) => {
   if (category === "square") return ar >= 0.9 && ar <= 1.1;
   if (category === "portrait") return ar < 0.9;
   if (category === "landscape") return ar > 1.1;
+  return true;
+};
+
+export const matchesScreenshotFilter = (file, filter) => {
+  if (filter === null || filter === undefined) return true;
+
+  const isScreenshot = file.isScreenshot === true;
+
+  if (filter === "hide") return !isScreenshot;
+  if (filter === "only") return isScreenshot;
   return true;
 };
 
@@ -99,5 +117,7 @@ export const useFiltersActiveCount = (filters) =>
       filters.minResolution !== null && filters.minResolution !== undefined ? 1 : 0;
     const aspectRatioCount =
       filters.aspectRatio !== null && filters.aspectRatio !== undefined ? 1 : 0;
-    return includeCount + excludeCount + ratingCount + resolutionCount + aspectRatioCount;
+    const screenshotCount =
+      filters.screenshotFilter !== null && filters.screenshotFilter !== undefined ? 1 : 0;
+    return includeCount + excludeCount + ratingCount + resolutionCount + aspectRatioCount + screenshotCount;
   }, [filters]);

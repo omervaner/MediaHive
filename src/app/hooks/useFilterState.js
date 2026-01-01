@@ -8,6 +8,7 @@ import {
   useFiltersActiveCount,
   matchesResolution,
   matchesAspectRatio,
+  matchesScreenshotFilter,
 } from "../filters/filtersUtils";
 
 const resolveValue = (value, fallback) =>
@@ -20,6 +21,7 @@ const normalizeFiltersDraft = (draft, prev) => {
   const exactRatingRaw = resolveValue(draft?.exactRating, prev.exactRating);
   const minResolutionRaw = resolveValue(draft?.minResolution, prev.minResolution);
   const aspectRatioRaw = resolveValue(draft?.aspectRatio, prev.aspectRatio);
+  const screenshotFilterRaw = resolveValue(draft?.screenshotFilter, prev.screenshotFilter);
 
   return {
     includeTags: normalizeTagList(includeTagsRaw),
@@ -28,6 +30,7 @@ const normalizeFiltersDraft = (draft, prev) => {
     exactRating: sanitizeExactRating(exactRatingRaw),
     minResolution: minResolutionRaw,
     aspectRatio: aspectRatioRaw,
+    screenshotFilter: screenshotFilterRaw,
   };
 };
 
@@ -54,6 +57,7 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
     const exactRating = sanitizeExactRating(filters.exactRating);
     const minResolution = filters.minResolution ?? null;
     const aspectRatio = filters.aspectRatio ?? null;
+    const screenshotFilter = filters.screenshotFilter ?? null;
 
     const includeSet = includeTags.length
       ? new Set(includeTags.map((tag) => tag.toLowerCase()))
@@ -68,7 +72,8 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
       minRating !== null ||
       exactRating !== null ||
       minResolution !== null ||
-      aspectRatio !== null;
+      aspectRatio !== null ||
+      screenshotFilter !== null;
 
     if (!hasAnyFilter) {
       return videos;
@@ -110,6 +115,11 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
 
       // Aspect ratio filter
       if (!matchesAspectRatio(video, aspectRatio)) {
+        return false;
+      }
+
+      // Screenshot filter
+      if (!matchesScreenshotFilter(video, screenshotFilter)) {
         return false;
       }
 

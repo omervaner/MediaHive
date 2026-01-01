@@ -2,6 +2,7 @@ import React, { useMemo, useState, forwardRef } from "react";
 import {
   RESOLUTION_PRESETS,
   ASPECT_RATIO_OPTIONS,
+  SCREENSHOT_FILTER_OPTIONS,
 } from "../app/filters/filtersUtils";
 import "./FiltersPopover.css";
 
@@ -59,6 +60,7 @@ const FiltersPopover = forwardRef(
       filters?.exactRating === 0 ? 0 : filters?.exactRating ?? null;
     const minResolution = filters?.minResolution ?? null;
     const aspectRatio = filters?.aspectRatio ?? null;
+    const screenshotFilter = filters?.screenshotFilter ?? null;
 
     const [tagQuery, setTagQuery] = useState("");
 
@@ -198,6 +200,13 @@ const FiltersPopover = forwardRef(
       onChange((prev) => ({
         ...prev,
         aspectRatio: value === prev.aspectRatio ? null : value,
+      }));
+    };
+
+    const handleScreenshotFilterChange = (value) => {
+      onChange((prev) => ({
+        ...prev,
+        screenshotFilter: value === prev.screenshotFilter ? null : value,
       }));
     };
 
@@ -417,6 +426,31 @@ const FiltersPopover = forwardRef(
                       isActive ? "filters-pill--active" : ""
                     }`}
                     onClick={() => handleAspectRatioChange(value)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="filters-section">
+          <header className="filters-section__title">Screenshots</header>
+          <div className="filters-rating-group">
+            <div className="filters-rating-row">
+              {SCREENSHOT_FILTER_OPTIONS.map(({ value, label }) => {
+                const isActive =
+                  (value === null && screenshotFilter === null) ||
+                  value === screenshotFilter;
+                return (
+                  <button
+                    key={`ss-${value ?? "all"}`}
+                    type="button"
+                    className={`filters-pill ${
+                      isActive ? "filters-pill--active" : ""
+                    }`}
+                    onClick={() => handleScreenshotFilterChange(value)}
                   >
                     {label}
                   </button>
