@@ -23,6 +23,8 @@ const { getVideoDimensions } = require("./main/videoDimensions");
 const { getImageDimensions } = require("./main/imageDimensions");
 const { detectScreenshot } = require("./main/screenshotDetector");
 const { exportDataset } = require("./main/datasetExporter");
+const ollamaService = require("./main/ollamaService");
+const captionService = require("./main/captionService");
 require("./main/ipc-trash")(ipcMain);
 const { initMetadataStore, getMetadataStore, resetDatabase } = require("./main/database");
 const profileManager = require("./main/profile-manager");
@@ -1841,6 +1843,123 @@ ipcMain.handle("dataset:export", async (_event, options) => {
   } catch (error) {
     return { success: false, error: error.message || String(error) };
   }
+});
+
+// Ollama AI captioning handlers
+ipcMain.handle("ollama:check", async () => {
+  try {
+    const status = await ollamaService.checkOllamaStatus();
+    const visionInfo = ollamaService.checkVisionModels(status.models || []);
+    return {
+      ...status,
+      ...visionInfo,
+      visionModelOptions: ollamaService.getVisionModelOptions(),
+    };
+  } catch (error) {
+    return { running: false, models: [], error: error.message };
+  }
+});
+
+ipcMain.handle("ollama:pull", async (event, modelName) => {
+  try {
+    const result = await ollamaService.pullModel(modelName, (progress) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("ollama:pull-progress", progress);
+      }
+    });
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("ollama:delete", async (_event, modelName) => {
+  return ollamaService.deleteModel(modelName);
+});
+
+ipcMain.handle("ollama:get-model", async () => {
+  const settings = currentSettings || (await loadSettings());
+  return settings?.ollama?.model || null;
+});
+
+ipcMain.handle("ollama:set-model", async (_event, modelName) => {
+  try {
+    const settings = currentSettings || (await loadSettings());
+    const newSettings = {
+      ...settings,
+      ollama: {
+        ...(settings.ollama || {}),
+        model: modelName,
+      },
+    };
+    await saveSettings(newSettings);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("ollama:get-endpoint", async () => {
+  const settings = currentSettings || (await loadSettings());
+  return settings?.ollama?.endpoint || captionService.DEFAULT_ENDPOINT;
+});
+
+ipcMain.handle("ollama:set-endpoint", async (_event, endpoint) => {
+  try {
+    const settings = currentSettings || (await loadSettings());
+    const newSettings = {
+      ...settings,
+      ollama: {
+        ...(settings.ollama || {}),
+        endpoint: endpoint || captionService.DEFAULT_ENDPOINT,
+      },
+    };
+    await saveSettings(newSettings);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Caption service handlers
+ipcMain.handle("caption:generate", async (_event, imagePath, requestId) => {
+  const settings = currentSettings || (await loadSettings());
+  const model = settings?.ollama?.model;
+  const endpoint = settings?.ollama?.endpoint || captionService.DEFAULT_ENDPOINT;
+
+  if (!model) {
+    return { success: false, error: "No AI model configured. Please set up AI captioning first." };
+  }
+
+  return captionService.generateCaption(imagePath, { model, endpoint, requestId });
+});
+
+ipcMain.handle("caption:tags", async (_event, imagePath, requestId) => {
+  const settings = currentSettings || (await loadSettings());
+  const model = settings?.ollama?.model;
+  const endpoint = settings?.ollama?.endpoint || captionService.DEFAULT_ENDPOINT;
+
+  if (!model) {
+    return { success: false, error: "No AI model configured. Please set up AI captioning first." };
+  }
+
+  return captionService.generateTags(imagePath, { model, endpoint, requestId });
+});
+
+ipcMain.handle("caption:both", async (_event, imagePath, requestId) => {
+  const settings = currentSettings || (await loadSettings());
+  const model = settings?.ollama?.model;
+  const endpoint = settings?.ollama?.endpoint || captionService.DEFAULT_ENDPOINT;
+
+  if (!model) {
+    return { success: false, error: "No AI model configured. Please set up AI captioning first." };
+  }
+
+  return captionService.generateCaptionAndTags(imagePath, { model, endpoint, requestId });
+});
+
+ipcMain.handle("caption:cancel", (_event, requestId) => {
+  return captionService.cancelRequest(requestId);
 });
 
 ipcMain.handle('mem:get', () => {

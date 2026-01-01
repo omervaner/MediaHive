@@ -242,6 +242,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () => ipcRenderer.removeListener("dataset-export:progress", handler);
     },
   },
+
+  ollama: {
+    check: async () => ipcRenderer.invoke("ollama:check"),
+    pull: async (modelName) => ipcRenderer.invoke("ollama:pull", modelName),
+    delete: async (modelName) => ipcRenderer.invoke("ollama:delete", modelName),
+    getModel: async () => ipcRenderer.invoke("ollama:get-model"),
+    setModel: async (modelName) => ipcRenderer.invoke("ollama:set-model", modelName),
+    getEndpoint: async () => ipcRenderer.invoke("ollama:get-endpoint"),
+    setEndpoint: async (endpoint) => ipcRenderer.invoke("ollama:set-endpoint", endpoint),
+    onPullProgress: (callback) => {
+      const handler = (_event, progress) => callback(progress);
+      ipcRenderer.on("ollama:pull-progress", handler);
+      return () => ipcRenderer.removeListener("ollama:pull-progress", handler);
+    },
+  },
+
+  caption: {
+    generate: async (imagePath, requestId) => ipcRenderer.invoke("caption:generate", imagePath, requestId),
+    tags: async (imagePath, requestId) => ipcRenderer.invoke("caption:tags", imagePath, requestId),
+    both: async (imagePath, requestId) => ipcRenderer.invoke("caption:both", imagePath, requestId),
+    cancel: async (requestId) => ipcRenderer.invoke("caption:cancel", requestId),
+  },
 });
 
 contextBridge.exposeInMainWorld('appMem', {

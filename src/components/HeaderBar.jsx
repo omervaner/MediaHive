@@ -1,7 +1,5 @@
 import React from "react";
 import RecentLocationsMenu from "./RecentLocationsMenu";
-import SupportLink from "./SupportLink";
-import { supportContent } from "../config/supportContent";
 import { ZOOM_MAX_INDEX } from "../zoom/config.js";
 import { clampZoomIndex } from "../zoom/utils.js";
 import { SortKey } from "../sorting/sorting.js";
@@ -98,6 +96,22 @@ const ExportIcon = (props) => (
   </Icon>
 );
 
+const BrainIcon = (props) => (
+  <Icon {...props}>
+    <path d="M12 4.5a2.5 2.5 0 00-4.96-.46 2.5 2.5 0 00-1.98 3 2.5 2.5 0 00-1.32 4.24 3 3 0 00.34 5.58 2.5 2.5 0 002.96 3.08A2.5 2.5 0 0012 19.5a2.5 2.5 0 004.96.44 2.5 2.5 0 002.96-3.08 3 3 0 00.34-5.58 2.5 2.5 0 00-1.32-4.24 2.5 2.5 0 00-1.98-3A2.5 2.5 0 0012 4.5" />
+    <path d="M15.7 10.4a3 3 0 01-4.3 2.6" />
+    <path d="M9 10a.5.5 0 11-1 0 .5.5 0 011 0z" />
+    <path d="M16 10a.5.5 0 11-1 0 .5.5 0 011 0z" />
+  </Icon>
+);
+
+const GearIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+  </Icon>
+);
+
 const ImageIcon = (props) => (
   <Icon {...props}>
     <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -145,6 +159,8 @@ export default function HeaderBar({
   onMediaFilterChange,
   onExportClick,
   imageCount = 0,
+  onCaptionClick,
+  onSettingsClick,
 }) {
   const isElectron = !!window.electronAPI?.isElectron;
 
@@ -372,18 +388,30 @@ export default function HeaderBar({
             </button>
           )}
 
-          <SupportLink
-            className="donate-button"
-            aria-label={`${supportContent.donationButtonLabel} – ${supportContent.donationTooltip}`}
-            title={supportContent.donationTooltip}
-          >
-            <span aria-hidden="true" className="donate-button__icon">
-              ❤️
-            </span>
-            <span className="donate-button__label">
-              {supportContent.donationButtonLabel}
-            </span>
-          </SupportLink>
+          {isElectron && (
+            <button
+              onClick={onCaptionClick}
+              disabled={isLoadingFolder}
+              className="toggle-button"
+              title="AI Captioning Setup"
+              type="button"
+            >
+              <BrainIcon />
+              <span className="filters-button-label">Caption</span>
+            </button>
+          )}
+
+          {isElectron && (
+            <button
+              onClick={onSettingsClick}
+              disabled={isLoadingFolder}
+              className="toggle-button"
+              title="Settings"
+              type="button"
+            >
+              <GearIcon />
+            </button>
+          )}
         </div>
       </div>
     </div>

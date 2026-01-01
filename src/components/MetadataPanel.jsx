@@ -74,6 +74,19 @@ const MetadataPanel = forwardRef((
   const inputRef = useRef(null);
   const resizeSessionCleanupRef = useRef(null);
 
+  // AI Caption state
+  const [captionState, setCaptionState] = useState({
+    loading: false,
+    caption: null,
+    tags: null,
+    error: null,
+    generatedFor: null, // track which file was captioned
+    requestId: null,
+    startTime: null,
+  });
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [suggestedTags, setSuggestedTags] = useState([]); // AI-generated tags waiting to be saved
+
   const minHeight = Number.isFinite(minDockHeight) ? Math.max(160, minDockHeight) : 200;
   const maxHeight = Number.isFinite(maxDockHeight) ? maxDockHeight : 520;
 
@@ -221,6 +234,149 @@ const MetadataPanel = forwardRef((
       setInputValue("");
     }
   }, [isOpen]);
+
+  // Reset caption state when selection changes
+  useEffect(() => {
+    const currentFile = selectedVideos.length === 1 ? selectedVideos[0]?.fullPath : null;
+    if (captionState.generatedFor && captionState.generatedFor !== currentFile) {
+      setCaptionState({
+        loading: false,
+        caption: null,
+        tags: null,
+        error: null,
+        generatedFor: null,
+        requestId: null,
+        startTime: null,
+      });
+      setSuggestedTags([]);
+      setElapsedSeconds(0);
+    }
+  }, [selectedVideos, captionState.generatedFor]);
+
+  // Elapsed timer effect
+  useEffect(() => {
+    if (!captionState.loading || !captionState.startTime) {
+      return undefined;
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - captionState.startTime) / 1000);
+      setElapsedSeconds(elapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [captionState.loading, captionState.startTime]);
+
+  // Caption generation handler
+  const handleGenerateCaption = useCallback(async () => {
+    if (selectedVideos.length !== 1) return;
+    const file = selectedVideos[0];
+    if (!file?.fullPath || file.mediaType !== "image") return;
+
+    const requestId = `caption-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    setCaptionState({
+      loading: true,
+      caption: null,
+      tags: null,
+      error: null,
+      generatedFor: file.fullPath,
+      requestId,
+      startTime: Date.now(),
+    });
+    setElapsedSeconds(0);
+    setSuggestedTags([]);
+
+    try {
+      const result = await window.electronAPI?.caption?.both(file.fullPath, requestId);
+      if (result?.cancelled) {
+        // Don't update state if cancelled
+        return;
+      }
+      if (result?.success) {
+        setCaptionState((prev) => ({
+          ...prev,
+          loading: false,
+          caption: result.caption,
+          tags: result.tags || [],
+          error: null,
+        }));
+        // Set suggested tags for the Tags section
+        if (result.tags?.length > 0) {
+          setSuggestedTags(result.tags);
+        }
+      } else {
+        setCaptionState((prev) => ({
+          ...prev,
+          loading: false,
+          caption: null,
+          tags: null,
+          error: result?.error || "Failed to generate caption",
+        }));
+      }
+    } catch (err) {
+      setCaptionState((prev) => ({
+        ...prev,
+        loading: false,
+        caption: null,
+        tags: null,
+        error: err.message || "Failed to generate caption",
+      }));
+    }
+  }, [selectedVideos]);
+
+  // Cancel caption generation
+  const handleCancelCaption = useCallback(async () => {
+    if (!captionState.requestId) return;
+    await window.electronAPI?.caption?.cancel(captionState.requestId);
+    setCaptionState({
+      loading: false,
+      caption: null,
+      tags: null,
+      error: null,
+      generatedFor: null,
+      requestId: null,
+      startTime: null,
+    });
+    setElapsedSeconds(0);
+  }, [captionState.requestId]);
+
+  // Save suggested tags to file
+  const handleSaveSuggestedTags = useCallback(() => {
+    if (suggestedTags.length > 0) {
+      onAddTag?.(suggestedTags);
+      setSuggestedTags([]);
+    }
+  }, [suggestedTags, onAddTag]);
+
+  // Discard suggested tags
+  const handleDiscardSuggestedTags = useCallback(() => {
+    setSuggestedTags([]);
+  }, []);
+
+  // Copy caption to clipboard
+  const handleCopyCaption = useCallback(async () => {
+    if (!captionState.caption) return;
+    try {
+      await navigator.clipboard.writeText(captionState.caption);
+    } catch (err) {
+      // Fallback for older browsers
+      if (window.electronAPI?.copyToClipboard) {
+        await window.electronAPI.copyToClipboard(captionState.caption);
+      }
+    }
+  }, [captionState.caption]);
+
+  // Check if current selection is a single image
+  const isSingleImage = useMemo(() => {
+    return selectedVideos.length === 1 && selectedVideos[0]?.mediaType === "image";
+  }, [selectedVideos]);
+
+  // Check if we have a caption for the current file
+  const hasCaption = useMemo(() => {
+    if (!isSingleImage || !captionState.generatedFor) return false;
+    return captionState.generatedFor === selectedVideos[0]?.fullPath && captionState.caption;
+  }, [isSingleImage, captionState, selectedVideos]);
 
   const tagCounts = useMemo(() => {
     const counts = new Map();
@@ -701,6 +857,40 @@ const MetadataPanel = forwardRef((
                       </div>
                     )}
 
+                    {suggestedTags.length > 0 && (
+                      <div className="metadata-panel__suggested-group">
+                        <div className="metadata-panel__section-subtitle">
+                          AI-suggested tags
+                        </div>
+                        <div className="metadata-panel__chips">
+                          {suggestedTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="metadata-panel__chip metadata-panel__chip--ai"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="metadata-panel__suggested-actions">
+                          <button
+                            type="button"
+                            className="metadata-panel__caption-btn metadata-panel__caption-btn--primary"
+                            onClick={handleSaveSuggestedTags}
+                          >
+                            Save Tags
+                          </button>
+                          <button
+                            type="button"
+                            className="metadata-panel__caption-btn"
+                            onClick={handleDiscardSuggestedTags}
+                          >
+                            Discard
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="metadata-panel__input-row">
                       <input
                         ref={inputRef}
@@ -749,6 +939,87 @@ const MetadataPanel = forwardRef((
                           </button>
                         ))}
                       </div>
+                    </section>
+                  )}
+
+                  {isSingleImage && (
+                    <section className="metadata-panel__section metadata-panel__section--caption">
+                      <div className="metadata-panel__section-header">
+                        <span>AI Caption</span>
+                        {captionState.loading && (
+                          <span className="metadata-panel__badge metadata-panel__badge--loading">
+                            Generating... ({elapsedSeconds}s)
+                          </span>
+                        )}
+                      </div>
+
+                      {captionState.loading && (
+                        <div className="metadata-panel__caption-loading">
+                          <div className="metadata-panel__caption-loading-row">
+                            <span className="metadata-panel__spinner" />
+                            <span>Analyzing image...</span>
+                            <button
+                              type="button"
+                              className="metadata-panel__caption-btn metadata-panel__caption-btn--cancel"
+                              onClick={handleCancelCaption}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {elapsedSeconds >= 180 && (
+                            <div className="metadata-panel__caption-warning">
+                              Taking too long. Try a smaller model in Settings.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {captionState.error && !captionState.loading && (
+                        <div className="metadata-panel__caption-error">
+                          {captionState.error}
+                        </div>
+                      )}
+
+                      {hasCaption ? (
+                        <div className="metadata-panel__caption-result">
+                          <div className="metadata-panel__caption-text">
+                            {captionState.caption}
+                          </div>
+
+                          <div className="metadata-panel__caption-actions">
+                            <button
+                              type="button"
+                              className="metadata-panel__caption-btn"
+                              onClick={handleCopyCaption}
+                              title="Copy caption to clipboard"
+                            >
+                              Copy
+                            </button>
+                            <button
+                              type="button"
+                              className="metadata-panel__caption-btn metadata-panel__caption-btn--primary"
+                              onClick={handleGenerateCaption}
+                              disabled={captionState.loading}
+                            >
+                              Regenerate
+                            </button>
+                          </div>
+                        </div>
+                      ) : !captionState.loading && (
+                        <div className="metadata-panel__caption-empty">
+                          <p className="metadata-panel__caption-hint">
+                            Generate an AI description and tags for this image.
+                          </p>
+                          <button
+                            type="button"
+                            className="metadata-panel__caption-btn metadata-panel__caption-btn--primary"
+                            onClick={handleGenerateCaption}
+                            disabled={captionState.loading}
+                          >
+                            Generate Caption
+                          </button>
+                        </div>
+                      )}
                     </section>
                   )}
                 </div>

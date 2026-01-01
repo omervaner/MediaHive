@@ -18,6 +18,8 @@ import AboutDialog from "./components/AboutDialog";
 import DataLocationDialog from "./components/DataLocationDialog";
 import ProfilePromptDialog from "./components/ProfilePromptDialog";
 import ExportDialog from "./components/ExportDialog";
+import OllamaSetupDialog from "./components/OllamaSetupDialog";
+import SettingsDialog from "./components/SettingsDialog";
 
 import { useFullScreenModal } from "./hooks/useFullScreenModal";
 import { useVideoCollection } from "./hooks/video-collection";
@@ -155,6 +157,9 @@ function App() {
   const [profilePromptRequest, setProfilePromptRequest] = useState(null);
   const [profilePromptValue, setProfilePromptValue] = useState("");
   const [isExportDialogOpen, setExportDialogOpen] = useState(false);
+  const [isOllamaSetupOpen, setOllamaSetupOpen] = useState(false);
+  const [ollamaModel, setOllamaModel] = useState(null);
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
 
   // Video collection state
   const [actualPlaying, setActualPlaying] = useState(new Set());
@@ -202,6 +207,18 @@ function App() {
         unsubscribe();
       }
     };
+  }, []);
+
+  // Load saved Ollama model setting on startup
+  useEffect(() => {
+    const loadOllamaModel = async () => {
+      if (!window.electronAPI?.ollama?.getModel) return;
+      const savedModel = await window.electronAPI.ollama.getModel();
+      if (savedModel) {
+        setOllamaModel(savedModel);
+      }
+    };
+    loadOllamaModel();
   }, []);
 
   useEffect(() => {
@@ -1430,6 +1447,8 @@ function App() {
             onMediaFilterChange={handleMediaFilterChange}
             onExportClick={() => setExportDialogOpen(true)}
             imageCount={filteredImageCount}
+            onCaptionClick={() => setOllamaSetupOpen(true)}
+            onSettingsClick={() => setSettingsOpen(true)}
           />
 
           {isFiltersOpen && (
@@ -1463,6 +1482,24 @@ function App() {
             open={isExportDialogOpen}
             onClose={() => setExportDialogOpen(false)}
             files={filteredVideos}
+          />
+
+          <OllamaSetupDialog
+            open={isOllamaSetupOpen}
+            onClose={() => setOllamaSetupOpen(false)}
+            onSetupComplete={(model) => {
+              setOllamaModel(model);
+              console.log("Ollama setup complete, using model:", model);
+            }}
+          />
+
+          <SettingsDialog
+            open={isSettingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            onChangeModel={() => {
+              setSettingsOpen(false);
+              setOllamaSetupOpen(true);
+            }}
           />
 
           {filtersActiveCount > 0 && (
