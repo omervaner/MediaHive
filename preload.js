@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   openDonationPage: () => ipcRenderer.invoke("support:open-donation"),
 
+  // Open external URL in default browser
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
+
+  // Quit the application
+  quitApp: () => ipcRenderer.invoke("quit-app"),
+
   onOpenDataLocation: (callback) => {
     if (typeof callback !== "function") {
       return () => {};

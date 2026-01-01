@@ -29,50 +29,57 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 
 ---
 
-## Completed Work: Phase 4 QOL Features ✅
+## Current Work: Settings Expansion ✅ COMPLETE
 
-### Rubber Band Selection ✅ COMPLETE
-- Click and drag on empty grid space to draw selection rectangle
-- Shift+drag adds to existing selection
-- Ctrl/Cmd+drag toggles items
-- Amber-themed semi-transparent rectangle
-- Works with scroll position and all zoom levels
+### Completed
+- Clean menu-style Settings dialog with two navigation items
+- **AI Captioning** sub-modal: Model config, endpoint editing, installed models management
+- **About** sub-modal: App name, version, description, GitHub link, tech stack
+- **Exit App** button (subtle, bottom-left)
+- Sub-modals open on top of main Settings dialog
+- Escape key handling respects modal stack
 
-**Files created:**
-- `src/hooks/selection/useRubberBandSelection.js`
+### Pending (Future Work)
 
-**Files modified:**
-- `src/App.jsx` - Hook integration, mousedown handler, rectangle overlay
-- `src/App.css` - Rubber band styles
+#### Default Behaviors
+Save user preferences that persist across sessions:
+- Default sort order, group by folders, recursive loading
+- Default media filter, show filenames, zoom level
 
-### Copy/Move with Rename ✅ COMPLETE
-- Right-click context menu: "Copy to..." and "Move to..."
-- Destination folder picker
-- Rename options: keep original, prefix+sequence, find/replace
-- Preview renamed files before executing
-- Progress bar during operation
-- Auto-generates unique names if file exists
-- Moved files automatically removed from view
+#### Data Management
+- Thumbnail cache size + clear button
+- Metadata database size + clear button  
+- Recent folders clear button
 
-**Files created:**
-- `src/components/MoveDialog.jsx` - Copy/Move dialog with rename options
-- `main/fileOperations.js` - Backend copy/move with rename logic
+#### Keyboard Shortcuts
+Reference panel showing all available hotkeys
 
-**Files modified:**
-- `src/components/ContextMenu.jsx` - Added Copy to.../Move to... menu items
-- `main.js` - IPC handlers for file operations
-- `preload.js` - fileOps bridge (pickFolder, copyMove, onProgress)
-- `src/App.jsx` - MoveDialog integration, context action handling
+---
+
+## Completed Work
+
+### Phase 4: QOL Features ✅ COMPLETE
+- Rubber band selection (drag to select multiple)
+- Copy/Move with rename (prefix+sequence, find/replace)
+
+### Phase 3: AI Captioning ✅ COMPLETE
+- Ollama integration, batch captioning, export integration
+
+### Phase 2.5: Filters & Export ✅ COMPLETE
+- Resolution/AR filters, screenshot detection, dataset export
+
+### Phase 2: Image Support ✅ COMPLETE
+- Images alongside videos, media type filter
 
 ---
 
 ## On Hold
 
 ### Phase 2.5 Step 4: Duplicate Finder ⏸️
-Perceptual hashing (pHash) to find visually similar images. Needs DCT implementation.
+Perceptual hashing (pHash) to find visually similar images.
 
 ### Phase 2.5 Step 5: Quality Scorer ⏸️
-Blur detection, exposure analysis, noise detection. Most complex, lowest priority.
+Blur detection, exposure analysis, noise detection.
 
 ---
 
@@ -93,16 +100,12 @@ MediaHive/
 │   ├── App.jsx             # Main app component
 │   ├── App.css             # Global styles (amber theme)
 │   ├── components/         # UI components
-│   │   ├── MoveDialog.jsx     # Copy/Move dialog
+│   │   ├── SettingsDialog.jsx  # Settings (expanding)
+│   │   ├── MoveDialog.jsx      # Copy/Move dialog
 │   │   └── ...
 │   └── hooks/              # React hooks
-│       └── selection/
-│           ├── useSelectionState.js
-│           └── useRubberBandSelection.js
 ├── assets/icons/        # App icons (mediahive.png/ico)
 └── docs/                # Documentation
-    ├── CHANGELOG.md        # Version history
-    └── PHASE3-AI-CAPTIONING.md
 ```
 
 ## Color Palette (Amber Theme)

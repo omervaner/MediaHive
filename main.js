@@ -1276,6 +1276,20 @@ ipcMain.handle("support:open-donation", async () => {
   }
 });
 
+ipcMain.handle("open-external", async (_event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to open external URL:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("quit-app", () => {
+  app.quit();
+});
+
 ipcMain.handle("data-location:get-state", async () => {
   try {
     return dataLocationManager.getRendererState();
