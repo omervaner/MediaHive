@@ -1,0 +1,161 @@
+{
+  "name": "video-swarm",
+  "version": "0.5.2",
+  "description": "Desktop application for viewing hundreds of videos simultaneously with advanced masonry layouts and real-time file system monitoring",
+  "main": "main.js",
+  "homepage": "https://github.com/Cerzi/videoswarm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cerzi/videoswarm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cerzi/videoswarm/issues"
+  },
+  "keywords": [
+    "video",
+    "browser",
+    "ai-generated",
+    "masonry",
+    "electron",
+    "react",
+    "video-management",
+    "batch-playback",
+    "content-creation"
+  ],
+  "author": {
+    "name": "cerzi",
+    "url": "https://github.com/cerzi",
+    "email": "bpateman@gmail.com"
+  },
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "electron . --no-sandbox",
+    "dev": "electron . --dev --no-sandbox",
+    "electron:dev": "concurrently \"npm run vite:dev\" \"wait-on http://localhost:5173 && electron . --dev --no-sandbox\"",
+    "electron:build": "npm run vite:build && electron-builder",
+    "electron:dist": "npm run vite:build && electron-builder --publish=never",
+    "electron:pack": "npm run vite:build && electron-builder --dir",
+    "vite:dev": "vite",
+    "vite:build": "vite build",
+    "vite:preview": "vite preview",
+    "postinstall": "electron-builder install-app-deps",
+    "debug": "electron . --no-sandbox --inspect=9229",
+    "clean": "rimraf dist dist-react",
+    "rebuild": "npm run clean && npm install",
+    "lint": "echo 'Add ESLint when ready'",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "concurrently": "^8.2.2",
+    "electron": "^37.2.6",
+    "electron-builder": "^24.9.1",
+    "jsdom": "^26.1.0",
+    "rimraf": "^5.0.5",
+    "vite": "^5.1.0",
+    "vitest": "^3.2.4",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "chokidar": "^4.0.3",
+    "electron-store": "^10.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "trash": "^9.0.0"
+  },
+  "build": {
+    "appId": "com.cerzi.videoswarm",
+    "productName": "VideoSwarm",
+    "afterPack": "./scripts/linux-fix.js",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "main/**",
+      "dist-react/**/*",
+      "assets/**/*",
+      "src/config/supportContent.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "README.md",
+        "to": "README.md"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "VideoSwarm-${version}-win-${arch}.${ext}",
+      "icon": "icons/videoswarm.ico",
+      "publisherName": "AI Tools",
+      "verifyUpdateCodeSignature": false
+    },
+    "portable": {
+      "artifactName": "VideoSwarm-${version}-win-${arch}-Portable.${ext}"
+    },
+    "mac": {
+      "target": []
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "artifactName": "VideoSwarm-${version}-linux.${ext}",
+      "icon": "icons/videoswarm.png",
+      "category": "Utility",
+      "executableName": "video-swarm",
+      "desktop": {
+        "Name": "Video Swarm",
+        "Comment": "View hundreds of videos simultaneously",
+        "Categories": "Video;"
+      },
+      "maintainer": "Cerzi <bpateman@gmail.com>"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Video Swarm"
+    },
+    "dmg": {
+      "title": "Video Swarm ${version}",
+      "backgroundColor": "#1a1a1a",
+      "window": {
+        "width": 600,
+        "height": 400
+      }
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    }
+  }
+}
