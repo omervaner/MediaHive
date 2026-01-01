@@ -2134,6 +2134,94 @@ ipcMain.handle("caption:batch-cancel", (_event, batchId) => {
   return captionService.cancelBatch(batchId);
 });
 
+// Data management handlers
+ipcMain.handle('data:get-stats', async () => {
+  const profilePath = getProfilePath(getActiveProfileId());
+  
+  // Get thumbnail cache stats
+  const cacheStats = thumbnailCache.getStats();
+  
+  // Get database size
+  let dbSizeBytes = 0;
+  const dbPath = path.join(profilePath, 'videoswarm-meta.db');
+  const dbFiles = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`];
+  
+  for (const file of dbFiles) {
+    try {
+      if (fs.existsSync(file)) {
+        const stat = fs.statSync(file);
+        dbSizeBytes += stat.size;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  
+  // Get recent folders count
+  const recentFolders = await getRecentFolders();
+  
+  return {
+    cache: cacheStats,
+    database: { sizeBytes: dbSizeBytes },
+    recentFolders: { count: recentFolders.length },
+    dataPath: profilePath,
+  };
+});
+
+ipcMain.handle('data:clear-cache', async () => {
+  try {
+    const result = thumbnailCache.clear();
+    return result;
+  } catch (error) {
+    console.error('[data] Failed to clear cache', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('data:clear-database', async () => {
+  try {
+    const profilePath = getProfilePath(getActiveProfileId());
+    
+    // Close and reset the database
+    resetDatabase();
+    
+    // Delete the database files
+    const dbPath = path.join(profilePath, 'videoswarm-meta.db');
+    const dbFiles = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`];
+    
+    let deleted = 0;
+    for (const file of dbFiles) {
+      try {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+          deleted++;
+        }
+      } catch (error) {
+        console.warn('[data] Failed to delete', file, error);
+      }
+    }
+    
+    // Reinitialize the database
+    await initMetadataStore(app, profilePath);
+    
+    console.log(`[data] Cleared database (${deleted} files deleted)`);
+    return { success: true, deleted };
+  } catch (error) {
+    console.error('[data] Failed to clear database', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('data:open-folder', async () => {
+  const profilePath = getProfilePath(getActiveProfileId());
+  try {
+    await shell.openPath(profilePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('mem:get', () => {
   // app.getAppMetrics(): memory fields are in KB
   const procs = app.getAppMetrics();

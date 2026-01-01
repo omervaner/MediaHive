@@ -213,6 +213,173 @@ function AICaptioningModal({ open, onClose, onChangeModel }) {
 }
 
 // ============================================
+// Sub-Modal: Data Management
+// ============================================
+function DataManagementModal({ open, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [clearing, setClearing] = useState(null); // 'cache' | 'database' | 'recent'
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await window.electronAPI?.dataManagement?.getStats();
+      setStats(result);
+    } catch (err) {
+      console.error("Failed to load stats:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      loadStats();
+    }
+  }, [open, loadStats]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
+  const handleClearCache = useCallback(async () => {
+    const confirmed = window.confirm(
+      "Clear thumbnail cache?\n\nThumbnails will be regenerated as needed. This is safe to do."
+    );
+    if (!confirmed) return;
+
+    setClearing("cache");
+    try {
+      await window.electronAPI?.dataManagement?.clearCache();
+      await loadStats();
+    } finally {
+      setClearing(null);
+    }
+  }, [loadStats]);
+
+  const handleClearDatabase = useCallback(async () => {
+    const confirmed = window.confirm(
+      "Clear metadata database?\n\n⚠️ This will remove all tags, ratings, and AI captions. This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    setClearing("database");
+    try {
+      await window.electronAPI?.dataManagement?.clearDatabase();
+      await loadStats();
+    } finally {
+      setClearing(null);
+    }
+  }, [loadStats]);
+
+  const handleClearRecent = useCallback(async () => {
+    setClearing("recent");
+    try {
+      await window.electronAPI?.recent?.clear();
+      await loadStats();
+    } finally {
+      setClearing(null);
+    }
+  }, [loadStats]);
+
+  const handleOpenFolder = useCallback(() => {
+    window.electronAPI?.dataManagement?.openFolder();
+  }, []);
+
+  if (!open) return null;
+
+  return (
+    <div className="settings-submodal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div className="settings-submodal" role="dialog" aria-modal="true">
+        <header className="settings-submodal__header">
+          <h3>Data Management</h3>
+          <button className="settings-submodal__close" onClick={onClose} aria-label="Close">×</button>
+        </header>
+
+        <div className="settings-submodal__body">
+          {loading ? (
+            <p className="settings-submodal__muted">Loading...</p>
+          ) : (
+            <>
+              {/* Thumbnail Cache */}
+              <div className="data-mgmt__item">
+                <div className="data-mgmt__item-info">
+                  <span className="data-mgmt__item-title">Thumbnail Cache</span>
+                  <span className="data-mgmt__item-detail">
+                    {stats?.cache?.count || 0} thumbnails • {formatBytes(stats?.cache?.sizeBytes)}
+                  </span>
+                </div>
+                <button
+                  className="settings-submodal__btn-sm"
+                  onClick={handleClearCache}
+                  disabled={clearing === "cache" || !stats?.cache?.count}
+                >
+                  {clearing === "cache" ? "Clearing..." : "Clear"}
+                </button>
+              </div>
+
+              {/* Metadata Database */}
+              <div className="data-mgmt__item">
+                <div className="data-mgmt__item-info">
+                  <span className="data-mgmt__item-title">Metadata Database</span>
+                  <span className="data-mgmt__item-detail">
+                    Tags, ratings & captions • {formatBytes(stats?.database?.sizeBytes)}
+                  </span>
+                </div>
+                <button
+                  className="settings-submodal__btn-sm settings-submodal__btn-sm--danger"
+                  onClick={handleClearDatabase}
+                  disabled={clearing === "database"}
+                >
+                  {clearing === "database" ? "Clearing..." : "Clear"}
+                </button>
+              </div>
+
+              {/* Recent Folders */}
+              <div className="data-mgmt__item">
+                <div className="data-mgmt__item-info">
+                  <span className="data-mgmt__item-title">Recent Folders</span>
+                  <span className="data-mgmt__item-detail">
+                    {stats?.recentFolders?.count || 0} folders in history
+                  </span>
+                </div>
+                <button
+                  className="settings-submodal__btn-sm"
+                  onClick={handleClearRecent}
+                  disabled={clearing === "recent" || !stats?.recentFolders?.count}
+                >
+                  {clearing === "recent" ? "Clearing..." : "Clear"}
+                </button>
+              </div>
+
+              {/* Data Location */}
+              <div className="data-mgmt__location">
+                <span className="data-mgmt__location-label">Data Location</span>
+                <div className="data-mgmt__location-row">
+                  <code className="data-mgmt__location-path">{stats?.dataPath || "Unknown"}</code>
+                  <button className="settings-submodal__btn-sm" onClick={handleOpenFolder}>
+                    Open
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <footer className="settings-submodal__footer">
+          <button className="settings-submodal__btn settings-submodal__btn--primary" onClick={onClose}>Done</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // Sub-Modal: About
 // ============================================
 function AboutModal({ open, onClose }) {
@@ -284,18 +451,21 @@ function AboutModal({ open, onClose }) {
 export default function SettingsDialog({ open, onClose, onChangeModel }) {
   const dialogRef = useRef(null);
   const [showAIConfig, setShowAIConfig] = useState(false);
+  const [showDataMgmt, setShowDataMgmt] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+
+  const anySubModalOpen = showAIConfig || showDataMgmt || showAbout;
 
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !showAIConfig && !showAbout) {
+      if (e.key === "Escape" && !anySubModalOpen) {
         onClose?.();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose, showAIConfig, showAbout]);
+  }, [open, onClose, anySubModalOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -313,6 +483,7 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
   useEffect(() => {
     if (!open) {
       setShowAIConfig(false);
+      setShowDataMgmt(false);
       setShowAbout(false);
     }
   }, [open]);
@@ -344,6 +515,17 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
                 <div className="settings-menu__item-text">
                   <span className="settings-menu__item-title">AI Captioning</span>
                   <span className="settings-menu__item-subtitle">Model configuration & management</span>
+                </div>
+              </div>
+              <span className="settings-menu__item-arrow">›</span>
+            </button>
+
+            <button className="settings-menu__item" onClick={() => setShowDataMgmt(true)}>
+              <div className="settings-menu__item-content">
+                <span className="settings-menu__item-icon">🗄️</span>
+                <div className="settings-menu__item-text">
+                  <span className="settings-menu__item-title">Data Management</span>
+                  <span className="settings-menu__item-subtitle">Cache, database & storage</span>
                 </div>
               </div>
               <span className="settings-menu__item-arrow">›</span>
@@ -385,6 +567,10 @@ export default function SettingsDialog({ open, onClose, onChangeModel }) {
         open={showAIConfig}
         onClose={() => setShowAIConfig(false)}
         onChangeModel={onChangeModel}
+      />
+      <DataManagementModal
+        open={showDataMgmt}
+        onClose={() => setShowDataMgmt(false)}
       />
       <AboutModal
         open={showAbout}

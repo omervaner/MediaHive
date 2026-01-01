@@ -289,6 +289,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
       return () => ipcRenderer.removeListener("caption:batch-progress", handler);
     },
   },
+
+  dataManagement: {
+    getStats: async () => ipcRenderer.invoke("data:get-stats"),
+    clearCache: async () => ipcRenderer.invoke("data:clear-cache"),
+    clearDatabase: async () => ipcRenderer.invoke("data:clear-database"),
+    openFolder: async () => ipcRenderer.invoke("data:open-folder"),
+  },
 });
 
 contextBridge.exposeInMainWorld('appMem', {

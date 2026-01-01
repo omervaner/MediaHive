@@ -78,6 +78,96 @@ class ThumbnailCache {
     this.profileRoot = null;
   }
 
+  /**
+   * Get cache statistics (file count and total size on disk)
+   */
+  getStats() {
+    if (!this.initialized || !this.baseDir) {
+      return { count: 0, sizeBytes: 0 };
+    }
+
+    try {
+      const files = fs.readdirSync(this.baseDir);
+      let totalSize = 0;
+      let count = 0;
+
+      for (const file of files) {
+        if (file.endsWith('.png')) {
+          const filePath = path.join(this.baseDir, file);
+          try {
+            const stat = fs.statSync(filePath);
+            totalSize += stat.size;
+            count++;
+          } catch {
+            // File may have been deleted
+          }
+        }
+      }
+
+      // Also count the index file
+      if (this.indexPath && fs.existsSync(this.indexPath)) {
+        try {
+          const indexStat = fs.statSync(this.indexPath);
+          totalSize += indexStat.size;
+        } catch {
+          // Ignore
+        }
+      }
+
+      return { count, sizeBytes: totalSize };
+    } catch (error) {
+      console.warn('[thumb-cache] Failed to get stats', error);
+      return { count: 0, sizeBytes: 0 };
+    }
+  }
+
+  /**
+   * Clear all cached thumbnails from disk and memory
+   */
+  clear() {
+    if (!this.initialized || !this.baseDir) {
+      return { success: false, error: 'NOT_INITIALIZED' };
+    }
+
+    try {
+      // Clear memory
+      this.memoryStore.clear();
+      this.signatureToEntry.clear();
+      this.pathToSignature.clear();
+
+      // Delete all PNG files
+      const files = fs.readdirSync(this.baseDir);
+      let deleted = 0;
+
+      for (const file of files) {
+        if (file.endsWith('.png')) {
+          const filePath = path.join(this.baseDir, file);
+          try {
+            fs.unlinkSync(filePath);
+            deleted++;
+          } catch (error) {
+            console.warn('[thumb-cache] Failed to delete', file, error);
+          }
+        }
+      }
+
+      // Clear the index
+      if (this.indexPath && fs.existsSync(this.indexPath)) {
+        try {
+          fs.writeFileSync(this.indexPath, JSON.stringify({ version: 1, entries: {} }), 'utf8');
+        } catch (error) {
+          console.warn('[thumb-cache] Failed to clear index', error);
+        }
+      }
+
+      console.log(`[thumb-cache] Cleared ${deleted} thumbnails`);
+      return { success: true, deleted };
+    } catch (error) {
+      console.error('[thumb-cache] Failed to clear cache', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   has(pathKey, signatureHint = null) {
     if (!this.initialized) {
       return { ok: false, error: "NOT_INITIALIZED" };

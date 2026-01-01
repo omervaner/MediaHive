@@ -2913,3 +2913,68 @@ body {
   font-size: 0.85rem;
   color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
 }
+
+/* ============================================
+   Data Management Modal
+   ============================================ */
+
+.data-mgmt__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  gap: 1rem;
+}
+
+.data-mgmt__item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.data-mgmt__item-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.data-mgmt__item-detail {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.55));
+}
+
+.data-mgmt__location {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.data-mgmt__location-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.7));
+}
+
+.data-mgmt__location-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.data-mgmt__location-path {
+  flex: 1;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

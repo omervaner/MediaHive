@@ -32,8 +32,9 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 ## Current Work: Settings Expansion ✅ COMPLETE
 
 ### Completed
-- Clean menu-style Settings dialog with two navigation items
+- Clean menu-style Settings dialog with three navigation items
 - **AI Captioning** sub-modal: Model config, endpoint editing, installed models management
+- **Data Management** sub-modal: Cache stats/clear, database stats/clear, recent folders clear, open data folder
 - **About** sub-modal: App name, version, description, GitHub link, tech stack
 - **Exit App** button (subtle, bottom-left)
 - Sub-modals open on top of main Settings dialog
@@ -45,11 +46,6 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 Save user preferences that persist across sessions:
 - Default sort order, group by folders, recursive loading
 - Default media filter, show filenames, zoom level
-
-#### Data Management
-- Thumbnail cache size + clear button
-- Metadata database size + clear button  
-- Recent folders clear button
 
 #### Keyboard Shortcuts
 Reference panel showing all available hotkeys
