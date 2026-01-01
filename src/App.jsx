@@ -22,6 +22,7 @@ import ExportDialog from "./components/ExportDialog";
 import OllamaSetupDialog from "./components/OllamaSetupDialog";
 import SettingsDialog from "./components/SettingsDialog";
 import BatchCaptionDialog from "./components/BatchCaptionDialog";
+import MoveDialog from "./components/MoveDialog";
 
 import { useFullScreenModal } from "./hooks/useFullScreenModal";
 import { useVideoCollection } from "./hooks/video-collection";
@@ -164,6 +165,7 @@ function App() {
   const [ollamaModel, setOllamaModel] = useState(null);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isBatchCaptionOpen, setBatchCaptionOpen] = useState(false);
+  const [moveDialogState, setMoveDialogState] = useState({ open: false, mode: "copy" });
 
   // Video collection state
   const [actualPlaying, setActualPlaying] = useState(new Set());
@@ -1020,6 +1022,15 @@ function App() {
         openMetadataPanel();
         return;
       }
+      // Copy/Move to folder
+      if (actionId === "copy-to") {
+        setMoveDialogState({ open: true, mode: "copy" });
+        return;
+      }
+      if (actionId === "move-to") {
+        setMoveDialogState({ open: true, mode: "move" });
+        return;
+      }
       if (actionId.startsWith("metadata:rate:")) {
         if (!selectedFingerprints.length) return;
         if (actionId === "metadata:rate:clear") {
@@ -1524,6 +1535,22 @@ function App() {
             onChangeModel={() => {
               setSettingsOpen(false);
               setOllamaSetupOpen(true);
+            }}
+          />
+
+          <MoveDialog
+            open={moveDialogState.open}
+            mode={moveDialogState.mode}
+            files={selectedVideos}
+            onClose={() => setMoveDialogState({ open: false, mode: "copy" })}
+            onComplete={(result) => {
+              // If files were moved, remove them from the view
+              if (result.mode === "move" && result.movedFiles?.length > 0) {
+                const movedPaths = new Set(result.movedFiles);
+                setVideos((prev) => prev.filter((v) => !movedPaths.has(v.fullPath)));
+                selection.clear();
+                notify(`Moved ${result.movedFiles.length} files`, "success");
+              }
             }}
           />
 

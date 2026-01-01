@@ -245,6 +245,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
   },
 
+  fileOps: {
+    pickFolder: async () => ipcRenderer.invoke("fileops:pick-folder"),
+    copyMove: async (options) => ipcRenderer.invoke("fileops:copy-move", options),
+    onProgress: (callback) => {
+      const handler = (_event, progress) => callback(progress);
+      ipcRenderer.on("fileops:progress", handler);
+      return () => ipcRenderer.removeListener("fileops:progress", handler);
+    },
+  },
+
   ollama: {
     check: async () => ipcRenderer.invoke("ollama:check"),
     pull: async (modelName) => ipcRenderer.invoke("ollama:pull", modelName),

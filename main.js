@@ -23,6 +23,7 @@ const { getVideoDimensions } = require("./main/videoDimensions");
 const { getImageDimensions } = require("./main/imageDimensions");
 const { detectScreenshot } = require("./main/screenshotDetector");
 const { exportDataset } = require("./main/datasetExporter");
+const { copyMoveFiles, pickFolder } = require("./main/fileOperations");
 const ollamaService = require("./main/ollamaService");
 const captionService = require("./main/captionService");
 require("./main/ipc-trash")(ipcMain);
@@ -1898,6 +1899,27 @@ ipcMain.handle("dataset:export", async (_event, options) => {
       },
     });
     return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+// File operations handlers (copy/move with rename)
+ipcMain.handle("fileops:pick-folder", async () => {
+  return pickFolder(mainWindow);
+});
+
+ipcMain.handle("fileops:copy-move", async (_event, options) => {
+  try {
+    const result = await copyMoveFiles({
+      ...options,
+      onProgress: (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("fileops:progress", progress);
+        }
+      },
+    });
+    return result;
   } catch (error) {
     return { success: false, error: error.message || String(error) };
   }

@@ -4,6 +4,44 @@
 
 ---
 
+### v0.7.0 - Phase 4: QOL Features ✅ COMPLETE (2026-01-01)
+
+Quality of life improvements for file management and selection.
+
+**Rubber Band Selection:**
+- Click and drag on empty grid space to draw selection rectangle
+- Shift+drag adds to existing selection
+- Ctrl/Cmd+drag toggles items (select if unselected, deselect if selected)
+- Amber-themed semi-transparent rectangle with border
+- Works with scroll position and all zoom levels
+- Performance optimized for 1000+ items
+
+**Copy/Move with Rename:**
+- Right-click context menu: "Copy to..." and "Move to..."
+- Destination folder picker dialog
+- Three rename modes:
+  - Keep original names
+  - Prefix + sequence (e.g., photo_001.jpg, photo_002.jpg)
+  - Find and replace text in filenames
+- Live preview of renamed files before execution
+- Progress bar during file operations
+- Auto-generates unique names if destination file exists
+- Moved files automatically removed from grid view
+
+**Files created:**
+- `src/hooks/selection/useRubberBandSelection.js` - Rubber band selection hook
+- `src/components/MoveDialog.jsx` - Copy/Move dialog with rename options
+- `main/fileOperations.js` - Backend copy/move with rename logic
+
+**Files modified:**
+- `src/components/ContextMenu.jsx` - Added Copy to.../Move to... menu items
+- `src/App.jsx` - Hook integration, dialog state, context action handling
+- `src/App.css` - Rubber band selection styles
+- `main.js` - IPC handlers for file operations
+- `preload.js` - fileOps bridge (pickFolder, copyMove, onProgress)
+
+---
+
 ### v0.7.0 - Phase 3: AI Captioning ✅ COMPLETE (2026-01-01)
 
 Local AI-powered image captioning using Ollama + Qwen3-VL.
@@ -125,7 +163,7 @@ Extended MediaHive to display images alongside videos with a filter toggle.
 
 | Date | Version | Summary |
 |------|---------|---------|
-| 2026-01-01 | 0.7.0 | Phase 3 complete (AI Captioning), amber rebrand, new icon |
+| 2026-01-01 | 0.7.0 | Phase 3 + 4 complete (AI Captioning, QOL features), amber rebrand |
 | 2025-01-01 | 0.3.0 | Phase 2.5 complete (Dataset Export) |
 | 2025-01-01 | 0.2.0 | Phase 2 complete, Phase 2.5 Steps 1-2 complete |
 | Pre-fork | 0.1.0 | VideoSwarm base (video-only) |

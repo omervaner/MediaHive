@@ -29,34 +29,40 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 
 ---
 
-## Current Work: QOL Features 🔄 IN PROGRESS
+## Completed Work: Phase 4 QOL Features ✅
 
-### Phase 4: Quality of Life Improvements
-
-| Feature | Description | Status | Priority |
-|---------|-------------|--------|----------|
-| Rubber band selection | Drag to select multiple files | Pending | High |
-| Batch rename | Prefix, sequence, find/replace | Pending | Medium |
-| Quick move/copy | Right-click → "Move to..." / "Copy to..." | Pending | Medium |
-
-### Rubber Band Selection (Next Up)
-
-**Goal:** Click and drag on empty space to draw a selection rectangle. All files within the rectangle get selected.
-
-**Requirements:**
-- Only activates on mousedown on empty grid space (not on cards)
-- Visual rectangle follows cursor during drag
+### Rubber Band Selection ✅ COMPLETE
+- Click and drag on empty grid space to draw selection rectangle
 - Shift+drag adds to existing selection
-- Ctrl+drag toggles items (select if unselected, deselect if selected)
-- Works with current zoom level and scroll position
-- Performance: must handle 1000+ items smoothly
+- Ctrl/Cmd+drag toggles items
+- Amber-themed semi-transparent rectangle
+- Works with scroll position and all zoom levels
 
-**Implementation approach:**
-1. Add mousedown/mousemove/mouseup handlers to grid container
-2. Track drag start position and current position
-3. Render semi-transparent selection rectangle overlay
-4. On drag end, compute which cards intersect the rectangle
-5. Update selection state accordingly
+**Files created:**
+- `src/hooks/selection/useRubberBandSelection.js`
+
+**Files modified:**
+- `src/App.jsx` - Hook integration, mousedown handler, rectangle overlay
+- `src/App.css` - Rubber band styles
+
+### Copy/Move with Rename ✅ COMPLETE
+- Right-click context menu: "Copy to..." and "Move to..."
+- Destination folder picker
+- Rename options: keep original, prefix+sequence, find/replace
+- Preview renamed files before executing
+- Progress bar during operation
+- Auto-generates unique names if file exists
+- Moved files automatically removed from view
+
+**Files created:**
+- `src/components/MoveDialog.jsx` - Copy/Move dialog with rename options
+- `main/fileOperations.js` - Backend copy/move with rename logic
+
+**Files modified:**
+- `src/components/ContextMenu.jsx` - Added Copy to.../Move to... menu items
+- `main.js` - IPC handlers for file operations
+- `preload.js` - fileOps bridge (pickFolder, copyMove, onProgress)
+- `src/App.jsx` - MoveDialog integration, context action handling
 
 ---
 
@@ -80,13 +86,19 @@ MediaHive/
 │   ├── ollamaService.js    # Ollama API
 │   ├── captionService.js   # AI caption generation
 │   ├── datasetExporter.js  # Export functionality
+│   ├── fileOperations.js   # Copy/move with rename
 │   ├── database.js         # SQLite metadata store
 │   └── ...
 ├── src/                 # React frontend
 │   ├── App.jsx             # Main app component
 │   ├── App.css             # Global styles (amber theme)
 │   ├── components/         # UI components
+│   │   ├── MoveDialog.jsx     # Copy/Move dialog
+│   │   └── ...
 │   └── hooks/              # React hooks
+│       └── selection/
+│           ├── useSelectionState.js
+│           └── useRubberBandSelection.js
 ├── assets/icons/        # App icons (mediahive.png/ico)
 └── docs/                # Documentation
     ├── CHANGELOG.md        # Version history

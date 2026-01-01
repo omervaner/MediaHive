@@ -91,6 +91,13 @@ const ContextMenu = ({
           { id: 'open-external', label: `🎬 ${menuLabel('open-external')}`, action: 'open-external' }
         );
       }
+      // Copy/Move to folder
+      if (isElectron) {
+        primaryActions.push(
+          { id: 'copy-to', label: `📂 Copy to...`, action: 'copy-to' },
+          { id: 'move-to', label: `📂 Move to...`, action: 'move-to' }
+        );
+      }
       if (isElectron) {
         primaryActions.push({
           id: 'move-to-trash',
