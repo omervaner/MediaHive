@@ -1640,7 +1640,7 @@ function App() {
               <div className="drop-zone">
                 <h2>🐝 Welcome to MediaHive 🐝</h2>
                 <p>
-                  Click the green folder icon in the top left to open a directory of media.
+                  Click the amber folder icon in the top left to open a directory of media.
                 </p>
                 <p>
                   Use the Subfolders toggle to enable recursive loading, which will recursively load all media in all subfolders as well.

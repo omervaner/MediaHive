@@ -119,6 +119,9 @@ if (process.platform === "linux") {
 app.commandLine.appendSwitch("js-flags", "--expose-gc");
 console.log("🧠 Enabled garbage collection access");
 
+// Set app name (fixes macOS menu bar showing "Electron" in dev mode)
+app.setName("MediaHive");
+
 let activeProfileId = null;
 let currentSettingsProfileId = null;
 
@@ -699,8 +702,8 @@ async function createWindow() {
   // Choose the right icon per platform
   const iconPath =
     process.platform === "win32"
-      ? assetPath("assets", "icons", "videoswarm.ico")
-      : assetPath("assets", "icons", "videoswarm.png");
+      ? assetPath("assets", "icons", "mediahive.ico")
+      : assetPath("assets", "icons", "mediahive.png");
 
 
   mainWindow = new BrowserWindow({
@@ -732,7 +735,7 @@ async function createWindow() {
   if (process.platform === "darwin") {
     try {
       app.dock.setIcon(nativeImage.createFromPath(
-        assetPath("assets", "icons", "videoswarm.png")
+        assetPath("assets", "icons", "mediahive.png")
       ));
     } catch { }
   }
