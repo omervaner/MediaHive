@@ -297,7 +297,7 @@ export default function HeaderBar({
               }
               disabled={isLoadingFolder}
               style={{
-                accentColor: zoomLevel >= minZoomIndex ? "#51cf66" : "#ffa726",
+                accentColor: zoomLevel >= minZoomIndex ? "#F59E0B" : "#ffa726",
               }}
             />
             {zoomLevel < minZoomIndex && (

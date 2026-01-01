@@ -58,6 +58,7 @@ const MetadataPanel = forwardRef((
     availableTags = [],
     onAddTag,
     onRemoveTag,
+    onClearAllTags,
     onApplyTagToSelection,
     onSetRating,
     onClearRating,
@@ -832,7 +833,7 @@ const MetadataPanel = forwardRef((
                         <button
                           type="button"
                           className="metadata-panel__clear-all-tags"
-                          onClick={() => sharedTags.forEach((tag) => onRemoveTag?.(tag))}
+                          onClick={() => onClearAllTags?.(sharedTags)}
                           title="Remove all tags from selected"
                         >
                           Clear All

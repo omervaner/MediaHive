@@ -71,6 +71,35 @@ export function useMetadataActions({
     [selectedFingerprints, applyMetadataPatch, setAvailableTags, notify]
   );
 
+  const handleClearAllTags = useCallback(
+    async (tagNames) => {
+      const api = window.electronAPI?.metadata;
+      if (!api?.removeTag) return;
+      const fingerprints = selectedFingerprints;
+      if (!fingerprints.length || !tagNames?.length) return;
+      try {
+        let lastResult = null;
+        for (const tagName of tagNames) {
+          const cleanName = (tagName ?? "").trim();
+          if (!cleanName) continue;
+          lastResult = await api.removeTag(fingerprints, cleanName);
+          if (lastResult?.updates) applyMetadataPatch(lastResult.updates);
+        }
+        if (lastResult && Array.isArray(lastResult?.tags)) {
+          setAvailableTags(lastResult.tags);
+        }
+        notify(
+          `Cleared ${tagNames.length} tag(s) from ${fingerprints.length} item(s)`,
+          "success"
+        );
+      } catch (error) {
+        console.error("Failed to clear tags:", error);
+        notify("Failed to clear tags", "error");
+      }
+    },
+    [selectedFingerprints, applyMetadataPatch, setAvailableTags, notify]
+  );
+
   const handleSetRating = useCallback(
     async (value, targetFingerprints = selectedFingerprints) => {
       const api = window.electronAPI?.metadata;
@@ -125,6 +154,7 @@ export function useMetadataActions({
     applyMetadataPatch,
     handleAddTags,
     handleRemoveTag,
+    handleClearAllTags,
     handleSetRating,
     handleClearRating,
     handleApplyExistingTag,

@@ -52,7 +52,7 @@ export default function DebugSummary({
                 ? "#ff6b6b"
                 : memoryStatus.memoryPressure > 70
                 ? "#ffa726"
-                : "#51cf66",
+                : "#F59E0B",
               fontWeight: memoryStatus.isNearLimit ? "bold" : "normal",
             }}
           >

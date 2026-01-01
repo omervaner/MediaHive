@@ -59,11 +59,11 @@ const LoadingProgress = ({ progress, onCancel }) => {
           <div style={{
             width: `${percentage}%`,
             height: '100%',
-            backgroundColor: '#4CAF50',
+            backgroundColor: '#F59E0B',
             borderRadius: '4px',
             transition: 'width 0.3s ease',
             background: total > 0 
-              ? 'linear-gradient(90deg, #4CAF50, #45a049)' 
+              ? 'linear-gradient(90deg, #F59E0B, #D97706)' 
               : 'linear-gradient(90deg, #666, #888)'
           }} />
         </div>
@@ -80,7 +80,7 @@ const LoadingProgress = ({ progress, onCancel }) => {
           <span>
             {total > 0 ? `${current.toLocaleString()} / ${total.toLocaleString()}` : 'Preparing...'}
           </span>
-          <span style={{ fontWeight: 'bold', color: '#4CAF50' }}>
+          <span style={{ fontWeight: 'bold', color: '#F59E0B' }}>
             {percentage}%
           </span>
         </div>
@@ -129,7 +129,7 @@ const LoadingProgress = ({ progress, onCancel }) => {
               onClick={onCancel}
               style={{
                 padding: '0.75rem 1.5rem',
-                backgroundColor: '#4CAF50',
+                backgroundColor: '#F59E0B',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
@@ -138,8 +138,8 @@ const LoadingProgress = ({ progress, onCancel }) => {
                 fontWeight: 'bold',
                 transition: 'background-color 0.2s'
               }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#45a049'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#4CAF50'}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#D97706'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#F59E0B'}
             >
               Continue
             </button>

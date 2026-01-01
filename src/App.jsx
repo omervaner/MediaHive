@@ -789,7 +789,7 @@ function App() {
   const notify = useCallback((message, type = "info") => {
     const colors = {
       error: "#ff4444",
-      success: "#4CAF50",
+      success: "#F59E0B",
       warning: "#ff9800",
       info: "#007acc",
     };
@@ -814,6 +814,7 @@ function App() {
     applyMetadataPatch,
     handleAddTags,
     handleRemoveTag,
+    handleClearAllTags,
     handleSetRating,
     handleClearRating,
     handleApplyExistingTag,
@@ -1730,6 +1731,7 @@ function App() {
                 availableTags={availableTags}
                 onAddTag={handleAddTags}
                 onRemoveTag={handleRemoveTag}
+                onClearAllTags={handleClearAllTags}
                 onApplyTagToSelection={handleApplyExistingTag}
                 onSetRating={handleSetRating}
                 onClearRating={handleClearRating}

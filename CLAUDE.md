@@ -73,6 +73,7 @@ See `docs/CHANGELOG.md` for detailed history.
 - Fixed batch caption not updating React state (typo: `setRawVideos` → `setVideos` in App.jsx)
 - Fixed skip logic to check `tags` (current state) instead of `aiTags` (historical)
 - Added "Clear All" button in Tags section to remove all tags from selected files
+- Rebranded color scheme: green (#51cf66) → amber (#F59E0B) throughout the app
 
 ---
 
