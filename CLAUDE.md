@@ -23,59 +23,40 @@ npm test               # Run tests
 
 ---
 
-## Completed Work
+## Current Version: 0.7.0
 
-See `docs/CHANGELOG.md` for detailed history.
-
-- ✅ **Phase 2: Image Support** - Display images alongside videos with filter toggle
-- ✅ **Phase 2.5 Step 1: Resolution/AR Filter** - Filter by resolution presets and aspect ratio
-- ✅ **Phase 2.5 Step 2: Screenshot Detector** - Auto-detect screenshots with filter toggle
-- ✅ **Phase 2.5 Step 3: Dataset Export** - Export images to LoRA training-ready folder structure
+See `docs/CHANGELOG.md` for detailed history of completed features.
 
 ---
 
-## Current Work: Phase 3 - AI Captioning 🔄 IN PROGRESS
+## Current Work: QOL Features 🔄 IN PROGRESS
 
-**📄 Full spec: `docs/PHASE3-AI-CAPTIONING.md`**
+### Phase 4: Quality of Life Improvements
 
-**Goal:** Add AI-powered image captioning using Ollama + Qwen3-VL (local, private).
+| Feature | Description | Status | Priority |
+|---------|-------------|--------|----------|
+| Rubber band selection | Drag to select multiple files | Pending | High |
+| Batch rename | Prefix, sequence, find/replace | Pending | Medium |
+| Quick move/copy | Right-click → "Move to..." / "Copy to..." | Pending | Medium |
 
-### Implementation Steps
+### Rubber Band Selection (Next Up)
 
-| Step | Description | Status | Files |
-|------|-------------|--------|-------|
-| 1 | Ollama detection & setup dialog | ✅ Done | `main/ollamaService.js`, `OllamaSetupDialog.jsx` |
-| 2 | Model download with progress | ✅ Done | Same + progress UI |
-| 3 | Caption service (single image) | ✅ Done | `main/captionService.js`, `MetadataPanel.jsx` |
-| 4 | Batch captioning UI | ✅ Done | `BatchCaptionDialog.jsx`, `HeaderBar.jsx` |
-| 5 | Caption display & editing | ✅ Done | Details panel, `SettingsDialog.jsx` |
-| 6 | Export integration | ✅ Done | Connect captions to Dataset Export |
+**Goal:** Click and drag on empty space to draw a selection rectangle. All files within the rectangle get selected.
 
-### Model Options (4 tiers)
+**Requirements:**
+- Only activates on mousedown on empty grid space (not on cards)
+- Visual rectangle follows cursor during drag
+- Shift+drag adds to existing selection
+- Ctrl+drag toggles items (select if unselected, deselect if selected)
+- Works with current zoom level and scroll position
+- Performance: must handle 1000+ items smoothly
 
-| Tier | Model | Size | RAM |
-|------|-------|------|-----|
-| Very Fast | `qwen3-vl:2b` | ~1.9 GB | 4GB+ |
-| Fast | `qwen3-vl:4b` | ~3.3 GB | 8GB+ |
-| Recommended | `qwen3-vl:8b` | ~6.1 GB | 16GB+ |
-| Maximum | `qwen3-vl:32b` | ~20 GB | 32GB+ |
-
-### Completed Features
-- Ollama detection with "Download Ollama" link
-- 4-tier model picker with download progress
-- Single image captioning with cancel button
-- Elapsed timer during generation
-- 3-minute timeout warning
-- Batch captioning with progress UI and auto-save tags
-- Settings dialog with model management (view/delete models)
-
-### Recent Bug Fixes (2026-01-01)
-- Fixed batch caption not updating React state (typo: `setRawVideos` → `setVideos` in App.jsx)
-- Fixed skip logic to check `tags` (current state) instead of `aiTags` (historical)
-- Added "Clear All" button in Tags section to remove all tags from selected files
-- Rebranded color scheme: green (#51cf66) → amber (#F59E0B) throughout the app
-- Added macOS title bar with drag region for traffic light spacing
-- Export integration: choose between AI captions or tags for .txt files
+**Implementation approach:**
+1. Add mousedown/mousemove/mouseup handlers to grid container
+2. Track drag start position and current position
+3. Render semi-transparent selection rectangle overlay
+4. On drag end, compute which cards intersect the rectangle
+5. Update selection state accordingly
 
 ---
 
@@ -89,10 +70,44 @@ Blur detection, exposure analysis, noise detection. Most complex, lowest priorit
 
 ---
 
+## Project Structure
+
+```
+MediaHive/
+├── main.js              # Electron main process orchestrator
+├── preload.js           # IPC bridge
+├── main/                # Backend modules
+│   ├── ollamaService.js    # Ollama API
+│   ├── captionService.js   # AI caption generation
+│   ├── datasetExporter.js  # Export functionality
+│   ├── database.js         # SQLite metadata store
+│   └── ...
+├── src/                 # React frontend
+│   ├── App.jsx             # Main app component
+│   ├── App.css             # Global styles (amber theme)
+│   ├── components/         # UI components
+│   └── hooks/              # React hooks
+├── assets/icons/        # App icons (mediahive.png/ico)
+└── docs/                # Documentation
+    ├── CHANGELOG.md        # Version history
+    └── PHASE3-AI-CAPTIONING.md
+```
+
+## Color Palette (Amber Theme)
+
+- Main accent: `#F59E0B` (amber-500)
+- Hover/dark: `#D97706` (amber-600)
+- Light/success: `#FBBF24` (amber-400)
+- Text on amber: `#422006` (dark brown)
+- CSS variable: `--color-accent`
+
+---
+
 ## Dependencies
 
 **Installed:**
 - `sharp` - Image processing (dimensions, resize, EXIF)
+- `better-sqlite3` - Metadata database
 
 **May need later:**
 - None currently planned

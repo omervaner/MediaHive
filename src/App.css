@@ -29,6 +29,20 @@
   -webkit-app-region: drag;
 }
 
+/* ===== Rubber Band Selection ===== */
+.rubber-band-selection {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+.content-region__viewport {
+  cursor: default;
+}
+
+.content-region__viewport:active {
+  cursor: crosshair;
+}
+
 html,
 body,
 #root {

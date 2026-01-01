@@ -30,6 +30,7 @@ import useLongTaskFlag from "./hooks/ui-perf/useLongTaskFlag";
 import useInitGate from "./hooks/ui-perf/useInitGate";
 
 import useSelectionState from "./hooks/selection/useSelectionState";
+import useRubberBandSelection from "./hooks/selection/useRubberBandSelection";
 import useStableViewAnchoring from "./hooks/selection/useStableViewAnchoring";
 import { useContextMenu } from "./hooks/context-menu/useContextMenu";
 import useActionDispatch from "./hooks/actions/useActionDispatch";
@@ -381,6 +382,19 @@ function App() {
   });
 
   const totalVideoCount = videos.length;
+
+  // Rubber band selection
+  const {
+    isSelecting: isRubberBandSelecting,
+    handleMouseDown: handleRubberBandMouseDown,
+    selectionStyle: rubberBandStyle,
+  } = useRubberBandSelection({
+    containerRef: scrollContainerRef,
+    gridRef,
+    orderedIds,
+    selection,
+    enabled: videos.length > 0,
+  });
 
   // Count images in filtered results for export
   const filteredImageCount = useMemo(
@@ -1662,7 +1676,13 @@ function App() {
               <div
                 className="content-region__viewport"
                 ref={scrollContainerRef}
+                onMouseDown={handleRubberBandMouseDown}
+                style={{ position: 'relative' }}
               >
+                {/* Rubber band selection rectangle */}
+                {rubberBandStyle && (
+                  <div style={rubberBandStyle} className="rubber-band-selection" />
+                )}
                 <div
                   ref={gridRef}
                   className={`video-grid masonry-vertical ${

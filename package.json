@@ -1,6 +1,6 @@
 {
   "name": "media-hive",
-  "version": "0.5.2",
+  "version": "0.7.0",
   "description": "Desktop application for viewing images and videos simultaneously with advanced masonry layouts, AI captioning, and real-time file system monitoring",
   "main": "main.js",
   "homepage": "https://github.com/omervaner/MediaHive",
