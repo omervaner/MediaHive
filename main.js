@@ -34,6 +34,7 @@ const { migrateLegacyProfileData } = require("./main/profile-migration");
 const ipcDuplicates = require("./main/ipc-duplicates");
 const ipcMetadata = require("./main/ipc-metadata");
 const ipcCaption = require("./main/ipc-caption");
+const menu = require("./main/menu");
 
 const DEFAULT_DONATION_URL = "https://ko-fi.com/videoswarm";
 
@@ -694,7 +695,7 @@ async function reconfigureForProfile(profileId, { broadcast = true } = {}) {
     broadcastProfileChange(settings);
   }
 
-  createMenu();
+  menu.rebuild();
   return settings;
 }
 
@@ -824,332 +825,6 @@ async function createWindow() {
 
   // Wire watcher events after window exists
   wireWatcherEvents(mainWindow);
-}
-
-async function promptForProfileName(defaultValue, { title, message }) {
-  if (typeof dialog.showInputBox === "function") {
-    const result = await dialog.showInputBox({
-      title,
-      message,
-      buttonLabel: "Save",
-      value: defaultValue ?? "",
-      inputLabel: message,
-      cancelId: 1,
-    });
-    if (result?.canceled || result?.response === 1) {
-      return null;
-    }
-    const value = result?.value ?? result?.textValue ?? result?.inputValue ?? "";
-    const trimmed = typeof value === "string" ? value.trim() : "";
-    return trimmed.length ? trimmed : null;
-  }
-
-  if (mainWindow?.webContents) {
-    const requestId = `profile-prompt-${Date.now()}-${Math.random()
-      .toString(16)
-      .slice(2)}`;
-    return await new Promise((resolve) => {
-      let settled = false;
-      const channel = "profiles:prompt-response";
-      const cleanup = () => {
-        if (settled) return;
-        settled = true;
-        ipcMain.removeListener(channel, handler);
-        clearTimeout(timeoutId);
-      };
-      const handler = (_event, payload) => {
-        if (!payload || payload.requestId !== requestId) {
-          return;
-        }
-        cleanup();
-        const value =
-          typeof payload.value === "string" ? payload.value.trim() : "";
-        resolve(value.length ? value : null);
-      };
-      const timeoutId = setTimeout(() => {
-        cleanup();
-        resolve(null);
-      }, 45000);
-
-      ipcMain.on(channel, handler);
-      try {
-        mainWindow.webContents.send("profiles:prompt-input", {
-          requestId,
-          defaultValue,
-          title,
-          message,
-        });
-      } catch (error) {
-        cleanup();
-        console.warn("[profiles] Failed to request renderer prompt", error);
-        resolve(null);
-      }
-    });
-  }
-
-  const { response } = await dialog.showMessageBox(mainWindow || null, {
-    type: "question",
-    buttons: ["Use Suggested", "Cancel"],
-    defaultId: 0,
-    cancelId: 1,
-    title,
-    message,
-    detail:
-      "Your Electron version does not provide text input dialogs. Choose 'Use Suggested' to accept the suggested name.",
-  });
-  if (response === 0) {
-    const trimmed = typeof defaultValue === "string" ? defaultValue.trim() : "";
-    return trimmed.length ? trimmed : null;
-  }
-  return null;
-}
-
-async function handleCreateProfileFromMenu() {
-  const profiles = profileManager.listProfiles();
-  const suggested = `Profile ${profiles.length + 1}`;
-  const name = await promptForProfileName(suggested, {
-    title: "Create Profile",
-    message: "Enter a name for the new profile:",
-  });
-  if (!name) return;
-  try {
-    const profile = profileManager.createProfile(name);
-    await reconfigureForProfile(profile.id);
-  } catch (error) {
-    console.error("Failed to create profile", error);
-    await dialog.showMessageBox(mainWindow || null, {
-      type: "error",
-      title: "Create Profile Failed",
-      message: "Could not create the profile.",
-      detail: error?.message || String(error),
-    });
-  }
-}
-
-async function handleRenameActiveProfileFromMenu() {
-  const activeId = getActiveProfileId();
-  const currentName = getProfileDisplayName(activeId);
-  const name = await promptForProfileName(currentName, {
-    title: "Rename Profile",
-    message: "Enter a new name for the active profile:",
-  });
-  if (!name || name === currentName) {
-    return;
-  }
-  try {
-    profileManager.renameProfile(activeId, name);
-    createMenu();
-    broadcastProfileChange(currentSettings);
-  } catch (error) {
-    console.error("Failed to rename profile", error);
-    await dialog.showMessageBox(mainWindow || null, {
-      type: "error",
-      title: "Rename Profile Failed",
-      message: "Could not rename the profile.",
-      detail: error?.message || String(error),
-    });
-  }
-}
-
-async function handleDeleteActiveProfileFromMenu() {
-  const activeId = getActiveProfileId();
-  const profiles = profileManager.listProfiles();
-  if (profiles.length <= 1) {
-    await dialog.showMessageBox(mainWindow || null, {
-      type: "warning",
-      title: "Delete Profile",
-      message: "At least one profile must remain.",
-    });
-    return;
-  }
-
-  const activeName = getProfileDisplayName(activeId);
-  const { response } = await dialog.showMessageBox(mainWindow || null, {
-    type: "warning",
-    buttons: ["Delete", "Cancel"],
-    defaultId: 1,
-    cancelId: 1,
-    title: "Delete Profile",
-    message: `Delete the profile "${activeName}"?`,
-    detail:
-      "All settings and cached data for this profile will be removed. This cannot be undone.",
-  });
-  if (response !== 0) {
-    return;
-  }
-
-  try {
-    profileManager.deleteProfile(activeId);
-    await reconfigureForProfile(profileManager.getActiveProfile());
-  } catch (error) {
-    console.error("Failed to delete profile", error);
-    await dialog.showMessageBox(mainWindow || null, {
-      type: "error",
-      title: "Delete Profile Failed",
-      message: "Could not delete the profile.",
-      detail: error?.message || String(error),
-    });
-  }
-}
-
-function buildProfilesMenuTemplate() {
-  const profiles = profileManager.listProfiles();
-  if (!profiles.length) {
-    return [];
-  }
-  const activeId = getActiveProfileId();
-  const activeName = getProfileDisplayName(activeId);
-
-  const submenu = [
-    { label: `Active: ${activeName}`, enabled: false },
-    { type: "separator" },
-    ...profiles.map((profile) => ({
-      label: profile.name,
-      type: "radio",
-      checked: profile.id === activeId,
-      click: () => {
-        if (profile.id !== getActiveProfileId()) {
-          reconfigureForProfile(profile.id).catch((error) => {
-            console.error("Failed to switch profile", error);
-          });
-        }
-      },
-    })),
-    { type: "separator" },
-    {
-      label: "Create Profile…",
-      click: () => {
-        handleCreateProfileFromMenu().catch((error) => {
-          console.error("Create profile handler failed", error);
-        });
-      },
-    },
-    {
-      label: "Rename Profile…",
-      enabled: profiles.length > 0,
-      click: () => {
-        handleRenameActiveProfileFromMenu().catch((error) => {
-          console.error("Rename profile handler failed", error);
-        });
-      },
-    },
-    {
-      label: "Delete Profile…",
-      enabled: profiles.length > 1,
-      click: () => {
-        handleDeleteActiveProfileFromMenu().catch((error) => {
-          console.error("Delete profile handler failed", error);
-        });
-      },
-    },
-  ];
-
-  return submenu;
-}
-
-// Create application menu with folder selection
-function createMenu() {
-  const template = [
-    {
-      label: "File",
-      submenu: [
-        {
-          label: "Open Folder",
-          accelerator: "CmdOrCtrl+O",
-          click: async () => {
-            const result = await dialog.showOpenDialog(mainWindow, {
-              properties: ["openDirectory"],
-              title: "Select Video Folder",
-            });
-            if (!result.canceled && result.filePaths.length > 0) {
-              mainWindow.webContents.send(
-                "folder-selected",
-                result.filePaths[0]
-              );
-            }
-          },
-        },
-        { type: "separator" },
-        {
-          label: "Quit",
-          accelerator: process.platform === "darwin" ? "Cmd+Q" : "Ctrl+Q",
-          click: () => app.quit(),
-        },
-      ],
-    },
-    {
-      label: "Profiles",
-      submenu: buildProfilesMenuTemplate(),
-    },
-    {
-      label: "Options",
-      submenu: [
-        {
-          label: "Data Location",
-          click: () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send("ui:open-data-location");
-            }
-          },
-        },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [
-        { role: "reload" },
-        { role: "forceReload" },
-        { role: "toggleDevTools" },
-        { type: "separator" },
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
-        { type: "separator" },
-        { role: "togglefullscreen" },
-      ],
-    },
-    {
-      label: "Help",
-      submenu: [
-        {
-          label: "About VideoSwarm",
-          click: () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send("ui:open-about");
-            }
-          },
-        },
-        {
-          label: "Support VideoSwarm on Ko-fi",
-          click: () => {
-            openDonationPage().catch((error) => {
-              console.warn("Failed to open support link", error);
-            });
-          },
-        },
-      ],
-    },
-  ];
-
-  if (process.platform === "darwin") {
-    template.unshift({
-      label: app.getName(),
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "services" },
-        { type: "separator" },
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { type: "separator" },
-        { role: "quit" },
-      ],
-    });
-  }
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
 }
 
 // ===== Recent Folders Store (ESM import) =====
@@ -1359,7 +1034,7 @@ ipcMain.handle("profiles:create", async (_event, name) => {
 ipcMain.handle("profiles:rename", async (_event, profileId, newName) => {
   try {
     const renamed = profileManager.renameProfile(profileId, newName);
-    createMenu();
+    menu.rebuild();
     if (profileId === getActiveProfileId()) {
       broadcastProfileChange(currentSettings);
     }
@@ -2034,6 +1709,20 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+menu.init({
+  app,
+  Menu,
+  dialog,
+  ipcMain,
+  getMainWindow: () => mainWindow,
+  profileManager,
+  getActiveProfileId,
+  getProfileDisplayName,
+  reconfigureForProfile,
+  broadcastProfileChange,
+  openDonationPage,
 });
 
 app.whenReady().then(async () => {
