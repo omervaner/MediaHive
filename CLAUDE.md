@@ -46,7 +46,7 @@ See `docs/CHANGELOG.md` for detailed history of completed features.
 
 3. **`main.js`** (add handlers)
    - `duplicates:find` - Takes fingerprints array, returns groups of duplicates
-   - `duplicates:trash` - Takes array of file paths, moves all to trash
+   - (Trash uses the existing `bulkMoveToTrash` IPC; no dedicated `duplicates:trash` handler.)
 
 **Frontend (2 files):**
 
