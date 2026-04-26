@@ -72,6 +72,17 @@ body {
   -webkit-app-region: no-drag;
 }
 
+.header::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 48px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--color-surface));
+}
+
 .header button,
 .header input,
 .header select,
@@ -83,6 +94,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 0 0 auto;
 }
 
 .controls {
@@ -90,6 +102,18 @@ body {
   align-items: center;
   gap: 1rem;
   margin-left: auto;
+  overflow-x: auto;
+  min-width: 0;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.controls > * {
+  flex: 0 0 auto;
+}
+
+.controls::-webkit-scrollbar {
+  display: none;
 }
 
 .file-input-wrapper {
@@ -795,7 +819,6 @@ body {
   min-height: 0;
   height: 100%;
   overflow-y: auto;
-  scrollbar-gutter: stable both-edges;
   overflow-anchor: auto;
   transition: padding-bottom 0.3s ease;
   padding-bottom: 0;
@@ -1249,11 +1272,6 @@ body {
   transform: translateZ(0);
   scroll-behavior: smooth;
 }
-.virtual-grid-container::-webkit-scrollbar { width: 12px; }
-.virtual-grid-container::-webkit-scrollbar-track { background: #2d2d2d; }
-.virtual-grid-container::-webkit-scrollbar-thumb { background: #555; border-radius: 6px; }
-.virtual-grid-container::-webkit-scrollbar-thumb:hover { background: #777; }
-
 .virtual-grid-container .video-item {
   will-change: transform;
   transform: translateZ(0);
