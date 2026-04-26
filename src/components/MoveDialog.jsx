@@ -133,10 +133,10 @@ export default function MoveDialog({
       
       if (res.success && mode === "move" && onComplete) {
         // Notify parent about moved files so they can be removed from view
-        onComplete({ 
-          mode, 
-          movedFiles: files.map(f => f.fullPath),
-          destination 
+        onComplete({
+          mode,
+          movedFiles: res.processedFiles || [],
+          destination
         });
       }
     } catch (error) {

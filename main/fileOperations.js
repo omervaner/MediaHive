@@ -11,10 +11,11 @@ const path = require("path");
  * @param {string} options.destination - Destination folder path
  * @param {string} options.mode - 'copy' or 'move'
  * @param {Function} options.onProgress - Progress callback (current, total)
- * @returns {Promise<{success: boolean, processed: number, errors: string[]}>}
+ * @returns {Promise<{success: boolean, processed: number, processedFiles: string[], errors: string[]}>}
  */
 async function copyMoveFiles({ files, destination, mode = "copy", onProgress }) {
   const errors = [];
+  const processedFiles = [];
   let processed = 0;
   const total = files.length;
 
@@ -71,6 +72,7 @@ async function copyMoveFiles({ files, destination, mode = "copy", onProgress }) 
       }
 
       processed++;
+      processedFiles.push(sourcePath);
       if (onProgress) {
         onProgress({ current: processed, total });
       }
@@ -82,6 +84,7 @@ async function copyMoveFiles({ files, destination, mode = "copy", onProgress }) 
   return {
     success: errors.length === 0 || processed > 0,
     processed,
+    processedFiles,
     errors,
   };
 }
