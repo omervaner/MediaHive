@@ -120,8 +120,8 @@ async function tryMigrateLegacySettings(profileId, targetPath) {
     const legacySettings = JSON.parse(legacyRaw);
     const migrated = normaliseLoadedSettings(legacySettings);
     const { layoutMode, autoplayEnabled, ...toPersist } = migrated;
-    await fs.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.writeFile(targetPath, JSON.stringify(toPersist, null, 2));
+    await fsPromises.mkdir(path.dirname(targetPath), { recursive: true });
+    await fsPromises.writeFile(targetPath, JSON.stringify(toPersist, null, 2));
     console.log("[settings] Migrated legacy settings.json into profile scope");
     return migrated;
   } catch (error) {
