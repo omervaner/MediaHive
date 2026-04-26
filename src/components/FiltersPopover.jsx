@@ -216,7 +216,7 @@ const FiltersPopover = forwardRef(
         ref={ref}
         style={style}
         role="dialog"
-        aria-label="Video filters"
+        aria-label="Media filters"
       >
         <div className="filters-popover__header">
           <div>

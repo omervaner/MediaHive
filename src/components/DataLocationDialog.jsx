@@ -157,7 +157,7 @@ export default function DataLocationDialog({ open, onClose }) {
             setStatusMessage(
               buildMessage(
                 "error",
-                "VideoSwarm cannot write to the selected folder. Choose another location."
+                "MediaHive cannot write to the selected folder. Choose another location."
               )
             );
           } else {
@@ -176,7 +176,7 @@ export default function DataLocationDialog({ open, onClose }) {
           );
           break;
         case "relaunching":
-          setStatusMessage(buildMessage("info", "VideoSwarm is restarting..."));
+          setStatusMessage(buildMessage("info", "MediaHive is restarting..."));
           break;
         default:
           onClose?.();
@@ -235,7 +235,7 @@ export default function DataLocationDialog({ open, onClose }) {
                   aria-hidden="true"
                 />
                 <span className="data-location-current__warning-text">
-                  VideoSwarm cannot currently access this folder. Check that the drive
+                  MediaHive cannot currently access this folder. Check that the drive
                   or network location is available.
                 </span>
               </div>

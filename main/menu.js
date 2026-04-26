@@ -262,7 +262,7 @@ function rebuild() {
             const mainWindow = getMainWindow();
             const result = await dialog.showOpenDialog(mainWindow, {
               properties: ["openDirectory"],
-              title: "Select Video Folder",
+              title: "Select Media Folder",
             });
             if (!result.canceled && result.filePaths.length > 0) {
               mainWindow.webContents.send(
@@ -316,7 +316,7 @@ function rebuild() {
       label: "Help",
       submenu: [
         {
-          label: "About VideoSwarm",
+          label: "About MediaHive",
           click: () => {
             const mainWindow = getMainWindow();
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -325,7 +325,7 @@ function rebuild() {
           },
         },
         {
-          label: "Support VideoSwarm on Ko-fi",
+          label: "Support MediaHive on Ko-fi",
           click: () => {
             openDonationPage().catch((error) => {
               console.warn("Failed to open support link", error);

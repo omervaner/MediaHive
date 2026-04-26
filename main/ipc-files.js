@@ -326,7 +326,7 @@ function init(receivedDeps) {
     try {
       const result = await dialog.showOpenDialog(getMainWindow(), {
         properties: ["openDirectory"],
-        title: "Select Video Folder",
+        title: "Select Media Folder",
       });
 
       if (!result.canceled && result.filePaths.length > 0) {

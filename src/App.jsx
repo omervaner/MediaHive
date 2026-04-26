@@ -1832,7 +1832,7 @@ function App() {
                   videos.length > 0 &&
                   !isLoadingFolder && (
                     <div className="filters-empty-state">
-                      No videos match your current filters.
+                      No media match your current filters.
                     </div>
                   )}
 

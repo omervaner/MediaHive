@@ -275,7 +275,7 @@ export default function HeaderBar({
         </div>
 
         <div style={dividerStyle}>
-          <div className="video-limit-control" title="Limit rendered VideoCards">
+          <div className="video-limit-control" title="Limit rendered cards">
             <FilmIcon />
             <input
               type="range"
@@ -288,7 +288,7 @@ export default function HeaderBar({
                 handleRenderLimitChange(parseInt(e.target.value, 10))
               }
               disabled={isLoadingFolder}
-              aria-label="Rendered VideoCards limit"
+              aria-label="Rendered cards limit"
               aria-valuetext={renderLimitLabel}
             />
             <span style={{ fontSize: "0.8rem" }}>{renderLimitLabel}</span>
