@@ -1822,17 +1822,6 @@ ipcMain.handle("get-file-info", async (_event, filePath) => {
   }
 });
 
-// keep single-file API but implement it via bulk for consistency
-ipcMain.handle("move-to-trash", async (_event, filePath) => {
-  try {
-    await trash([filePath]); // batch of size 1
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to move to trash:", error);
-    return { success: false, error: error.message };
-  }
-});
-
 ipcMain.handle("copy-file", async (_event, sourcePath, destPath) => {
   try {
     await fsPromises.copyFile(sourcePath, destPath);

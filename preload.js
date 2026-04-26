@@ -165,9 +165,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   bulkMoveToTrash: async (paths) => {
     return await ipcRenderer.invoke('bulk-move-to-trash', paths);
   },
-  moveToTrash: async (filePath) => {
-    return await ipcRenderer.invoke("move-to-trash", filePath);
-  },
 
   confirmMoveToTrash: async (payload) => {
     const result = await ipcRenderer.invoke("confirm-move-to-trash", payload);
