@@ -105,7 +105,9 @@ async function exportDataset(options) {
           captionContent = file.tags.join(", ");
         }
 
-        await fs.promises.writeFile(captionPath, captionContent, "utf-8");
+        if (captionContent) {
+          await fs.promises.writeFile(captionPath, captionContent, "utf-8");
+        }
       }
 
       exported++;
