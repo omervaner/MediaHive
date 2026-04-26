@@ -34,6 +34,7 @@ const { migrateLegacyProfileData } = require("./main/profile-migration");
 const ipcDuplicates = require("./main/ipc-duplicates");
 const ipcMetadata = require("./main/ipc-metadata");
 const ipcCaption = require("./main/ipc-caption");
+const ipcSettings = require("./main/ipc-settings");
 const menu = require("./main/menu");
 
 const DEFAULT_DONATION_URL = "https://ko-fi.com/videoswarm";
@@ -128,70 +129,8 @@ console.log("🧠 Enabled garbage collection access");
 app.setName("MediaHive");
 
 let activeProfileId = null;
-let currentSettingsProfileId = null;
-
-// Enhanced default zoom detection based on screen size
-function getDefaultZoomForScreen() {
-  try {
-    const { screen } = require("electron");
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.workAreaSize;
-
-    console.log(`🖥️ Detected display: ${width}x${height}`);
-
-    // For 4K+ monitors, FORCE minimum 150% (index 2) to prevent crashes
-    if (width >= 3840 || height >= 2160) {
-      console.log(
-        "🖥️ 4K+ display detected, defaulting to 150% zoom for memory safety"
-      );
-      return 2; // 150%
-    }
-
-    // For high-DPI displays, default to 150% for safety
-    if (width >= 2560 || height >= 1440) {
-      console.log(
-        "🖥️ High-DPI display detected, defaulting to 150% zoom for safety"
-      );
-      return 2; // 150%
-    }
-
-    // For standard displays, 100% should be safe
-    if (width >= 1920 || height >= 1080) {
-      console.log("🖥️ Standard HD display detected, defaulting to 100% zoom");
-      return 1; // 100%
-    }
-
-    // For smaller displays, 100% is definitely safe
-    console.log("🖥️ Small display detected, defaulting to 100% zoom");
-    return 1; // 100%
-  } catch (error) {
-    console.log("🖥️ Screen not available yet, using safe default zoom (150%)");
-    return 2; // Default to 150% for safety when screen is not available
-  }
-}
-
-// SIMPLIFIED: Removed layoutMode and autoplayEnabled from default settings
-// Note: zoomLevel will be set dynamically after app is ready
-const defaultSettings = {
-  recursiveMode: false,
-  renderLimitStep: 10,
-  zoomLevel: 1, // Will be updated after app ready if no saved setting
-  showFilenames: true,
-  sortKey: "name",
-  sortDir: "asc",
-  groupByFolders: true,
-  mediaFilter: "all", // 'images' | 'videos' | 'all'
-  randomSeed: null,
-  windowBounds: {
-    width: 1400,
-    height: 900,
-    x: undefined,
-    y: undefined,
-  },
-};
 
 let mainWindow;
-let currentSettings = null;
 
 // ===== Watcher integration =====
 const { createFolderWatcher } = require("./main/watcher");
@@ -498,146 +437,20 @@ function wireWatcherEvents(win) {
   });
 }
 
-// ===== Settings load/save =====
-function computeDefaultZoomLevel() {
-  try {
-    return getDefaultZoomForScreen();
-  } catch {
-    return defaultSettings.zoomLevel;
-  }
-}
-
-function normaliseLoadedSettings(rawSettings) {
-  const { layoutMode, autoplayEnabled, ...cleanSettings } = rawSettings || {};
-  const merged = { ...defaultSettings, ...cleanSettings };
-  const hasZoom = Object.prototype.hasOwnProperty.call(cleanSettings, "zoomLevel")
-    && cleanSettings.zoomLevel !== null
-    && cleanSettings.zoomLevel !== undefined;
-  if (!hasZoom) {
-    merged.zoomLevel = computeDefaultZoomLevel();
-  }
-  return merged;
-}
-
-async function tryMigrateLegacySettings(profileId, targetPath) {
-  if (profileId !== profileManager.DEFAULT_PROFILE_ID) {
-    return null;
-  }
-  if (typeof profileManager.getUserDataPath !== "function") {
-    return null;
-  }
-
-  let userDataPath;
-  try {
-    userDataPath = profileManager.getUserDataPath();
-  } catch (error) {
-    console.warn("[settings] Unable to resolve userData path for migration", error);
-    return null;
-  }
-
-  const legacyPath = path.join(userDataPath, "settings.json");
-  if (legacyPath === targetPath) {
-    return null;
-  }
-
-  try {
-    const legacyRaw = await fsPromises.readFile(legacyPath, "utf8");
-    const legacySettings = JSON.parse(legacyRaw);
-    const migrated = normaliseLoadedSettings(legacySettings);
-    const { layoutMode, autoplayEnabled, ...toPersist } = migrated;
-    await fs.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.writeFile(targetPath, JSON.stringify(toPersist, null, 2));
-    console.log("[settings] Migrated legacy settings.json into profile scope");
-    return migrated;
-  } catch (error) {
-    if (error?.code !== "ENOENT") {
-      console.warn("[settings] Failed to migrate legacy settings", error);
-    }
-    return null;
-  }
-}
-
-async function loadSettings(profileId = getActiveProfileId()) {
-  const settingsFile = getSettingsPath(profileId);
-  try {
-    const data = await fsPromises.readFile(settingsFile, "utf8");
-    const parsed = JSON.parse(data);
-    const settings = normaliseLoadedSettings(parsed);
-    currentSettingsProfileId = profileId;
-    currentSettings = settings;
-    return currentSettings;
-  } catch (error) {
-    const migrated = await tryMigrateLegacySettings(profileId, settingsFile);
-    if (migrated) {
-      currentSettingsProfileId = profileId;
-      currentSettings = migrated;
-      return currentSettings;
-    }
-
-    if (error?.code !== "ENOENT") {
-      console.warn(
-        "[settings] Failed to read settings for profile, using defaults",
-        error
-      );
-    } else {
-      console.log(
-        "No settings file found for profile",
-        profileId,
-        "— using defaults"
-      );
-    }
-
-    const defaults = normaliseLoadedSettings(null);
-    currentSettingsProfileId = profileId;
-    currentSettings = defaults;
-    return currentSettings;
-  }
-}
-
-async function saveSettings(settings, profileId = getActiveProfileId()) {
-  try {
-    const { layoutMode, autoplayEnabled, ...cleanSettings } = settings || {};
-    const settingsFile = getSettingsPath(profileId);
-    await fsPromises.mkdir(path.dirname(settingsFile), { recursive: true });
-    await fsPromises.writeFile(settingsFile, JSON.stringify(cleanSettings, null, 2));
-    currentSettingsProfileId = profileId;
-    currentSettings = normaliseLoadedSettings(cleanSettings);
-    console.log("Settings saved for profile", profileId);
-  } catch (error) {
-    console.error("Failed to save settings:", error);
-  }
-}
-
 function saveWindowBounds() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     const bounds = mainWindow.getBounds();
-    const settings = {
-      windowBounds: bounds,
-    };
-    saveSettingsPartial(settings).catch(console.error);
+    ipcSettings.saveSettingsPartial({ windowBounds: bounds }).catch(console.error);
   }
 }
 
-async function saveSettingsPartial(partialSettings, profileId = getActiveProfileId()) {
-  try {
-    const current =
-      currentSettings && currentSettingsProfileId === profileId
-        ? currentSettings
-        : await loadSettings(profileId);
-    const newSettings = { ...current, ...partialSettings };
-    await saveSettings(newSettings, profileId);
-  } catch (error) {
-    console.error("Failed to save partial settings:", error);
-  }
-}
-
-function broadcastProfileChange(settings = currentSettings) {
+function broadcastProfileChange(settings = ipcSettings.getCurrentSettings()) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     const payload = {
       profileId: getActiveProfileId(),
       profileName: getProfileDisplayName(),
       profiles: profileManager.listProfiles(),
-      settings: settings || currentSettings || defaultSettings,
+      settings: settings || ipcSettings.getCurrentSettings() || ipcSettings.defaultSettings,
     };
     mainWindow.webContents.send("settings-loaded", payload.settings);
     mainWindow.webContents.send("profile-changed", payload);
@@ -687,9 +500,8 @@ async function reconfigureForProfile(profileId, { broadcast = true } = {}) {
   await initMetadataStore(app, profilePath);
   await ensureRecentStore(targetId);
 
-  currentSettings = null;
-  currentSettingsProfileId = null;
-  const settings = await loadSettings(targetId);
+  ipcSettings.resetCurrentSettings();
+  const settings = await ipcSettings.loadSettings(targetId);
 
   if (broadcast) {
     broadcastProfileChange(settings);
@@ -701,7 +513,7 @@ async function reconfigureForProfile(profileId, { broadcast = true } = {}) {
 
 // ===== Window/Menu =====
 async function createWindow() {
-  const settings = await loadSettings();
+  const settings = await ipcSettings.loadSettings();
   const appVersion = app.getVersion();
 
   // Choose the right icon per platform
@@ -761,24 +573,26 @@ async function createWindow() {
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("Page loaded, sending settings immediately");
     mainWindow.setTitle(`MediaHive v${appVersion}`);
-    mainWindow.webContents.send("settings-loaded", currentSettings);
+    const settingsSnapshot = ipcSettings.getCurrentSettings();
+    mainWindow.webContents.send("settings-loaded", settingsSnapshot);
     mainWindow.webContents.send("profile-changed", {
       profileId: getActiveProfileId(),
       profileName: getProfileDisplayName(),
       profiles: profileManager.listProfiles(),
-      settings: currentSettings,
+      settings: settingsSnapshot,
     });
   });
 
   mainWindow.webContents.on("dom-ready", () => {
     console.log("DOM ready, sending settings");
     mainWindow.setTitle(`MediaHive v${appVersion}`);
-    mainWindow.webContents.send("settings-loaded", currentSettings);
+    const settingsSnapshot = ipcSettings.getCurrentSettings();
+    mainWindow.webContents.send("settings-loaded", settingsSnapshot);
     mainWindow.webContents.send("profile-changed", {
       profileId: getActiveProfileId(),
       profileName: getProfileDisplayName(),
       profiles: profileManager.listProfiles(),
-      settings: currentSettings,
+      settings: settingsSnapshot,
     });
   });
 
@@ -1036,7 +850,7 @@ ipcMain.handle("profiles:rename", async (_event, profileId, newName) => {
     const renamed = profileManager.renameProfile(profileId, newName);
     menu.rebuild();
     if (profileId === getActiveProfileId()) {
-      broadcastProfileChange(currentSettings);
+      broadcastProfileChange();
     }
     return {
       success: true,
@@ -1161,37 +975,14 @@ ipcMain.on("dnd:start-file", (event, payload) => {
   }
 });
 
-ipcMain.handle("save-settings", async (_event, settings) => {
-  await saveSettings(settings);
-  return { success: true };
-});
-
-ipcMain.handle("load-settings", async () => {
-  const settings = await loadSettings();
-  return settings;
-});
-
-// NEW: Synchronous-ish settings getter - returns cached settings immediately
-ipcMain.handle("get-settings", async () => {
-  console.log("get-settings called, returning:", currentSettings);
-  return currentSettings || defaultSettings;
-});
-
-// NEW: Request settings (for refresh scenarios)
-ipcMain.handle("request-settings", async () => {
-  console.log("request-settings called, sending settings via IPC");
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(
-      "settings-loaded",
-      currentSettings || defaultSettings
-    );
-  }
-  return { success: true };
-});
-
-ipcMain.handle("save-settings-partial", async (_event, partialSettings) => {
-  await saveSettingsPartial(partialSettings);
-  return { success: true };
+ipcSettings.init({
+  ipcMain,
+  app,
+  getMainWindow: () => mainWindow,
+  getActiveProfileId,
+  profileManager,
+  getProfilePath,
+  getSettingsPath,
 });
 
 ipcMain.handle("select-folder", async () => {
@@ -1527,13 +1318,13 @@ ipcMain.handle("ollama:delete", async (_event, modelName) => {
 });
 
 ipcMain.handle("ollama:get-model", async () => {
-  const settings = currentSettings || (await loadSettings());
+  const settings = ipcSettings.getCurrentSettings() || (await ipcSettings.loadSettings());
   return settings?.ollama?.model || null;
 });
 
 ipcMain.handle("ollama:set-model", async (_event, modelName) => {
   try {
-    const settings = currentSettings || (await loadSettings());
+    const settings = ipcSettings.getCurrentSettings() || (await ipcSettings.loadSettings());
     const newSettings = {
       ...settings,
       ollama: {
@@ -1541,7 +1332,7 @@ ipcMain.handle("ollama:set-model", async (_event, modelName) => {
         model: modelName,
       },
     };
-    await saveSettings(newSettings);
+    await ipcSettings.saveSettings(newSettings);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1549,13 +1340,13 @@ ipcMain.handle("ollama:set-model", async (_event, modelName) => {
 });
 
 ipcMain.handle("ollama:get-endpoint", async () => {
-  const settings = currentSettings || (await loadSettings());
+  const settings = ipcSettings.getCurrentSettings() || (await ipcSettings.loadSettings());
   return settings?.ollama?.endpoint || captionService.DEFAULT_ENDPOINT;
 });
 
 ipcMain.handle("ollama:set-endpoint", async (_event, endpoint) => {
   try {
-    const settings = currentSettings || (await loadSettings());
+    const settings = ipcSettings.getCurrentSettings() || (await ipcSettings.loadSettings());
     const newSettings = {
       ...settings,
       ollama: {
@@ -1563,7 +1354,7 @@ ipcMain.handle("ollama:set-endpoint", async (_event, endpoint) => {
         endpoint: endpoint || captionService.DEFAULT_ENDPOINT,
       },
     };
-    await saveSettings(newSettings);
+    await ipcSettings.saveSettings(newSettings);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1572,8 +1363,8 @@ ipcMain.handle("ollama:set-endpoint", async (_event, endpoint) => {
 
 ipcCaption.init({
   ipcMain,
-  getCurrentSettings: () => currentSettings,
-  loadSettings,
+  getCurrentSettings: ipcSettings.getCurrentSettings,
+  loadSettings: ipcSettings.loadSettings,
   getStore: getMetadataStore,
 });
 
@@ -1733,7 +1524,7 @@ app.whenReady().then(async () => {
     console.log("GPU status:", app.getGPUFeatureStatus());
     await reconfigureForProfile(activeProfileId, { broadcast: false });
     await createWindow();
-    broadcastProfileChange(currentSettings || defaultSettings);
+    broadcastProfileChange();
   } catch (err) {
     console.error("❌ Startup failure:", err);
   }
