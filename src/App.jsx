@@ -302,6 +302,7 @@ function App() {
     videos,
     setVideos,
     isLoadingFolder,
+    cancelFolderLoad,
     loadingStage,
     loadingProgress,
     settingsLoaded,
@@ -1455,11 +1456,11 @@ function App() {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === "Escape" && isLoadingFolder) setIsLoadingFolder(false);
+      if (e.key === "Escape" && isLoadingFolder) cancelFolderLoad();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [isLoadingFolder]);
+  }, [isLoadingFolder, cancelFolderLoad]);
 
   // cleanup pass from videoCollection
   // drive the effect by stable scalars; apply deletions, not replacement; de-bounce one tick

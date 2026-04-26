@@ -38,6 +38,7 @@ export function useElectronFolderLifecycle({
   const [loadingStage, setLoadingStage] = useState("");
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const loadGenerationRef = useRef(0);
   const { clear: clearSelection, setSelected: setSelection } = selection;
   const setterRefs = useRef({
     setRecursiveMode,
@@ -94,6 +95,9 @@ export function useElectronFolderLifecycle({
       const api = window.electronAPI;
       if (!api?.readDirectory) return;
 
+      const myGen = ++loadGenerationRef.current;
+      const isCancelled = () => myGen !== loadGenerationRef.current;
+
       try {
         setIsLoadingFolder(true);
         setLoadingStage("Reading directory...");
@@ -110,14 +114,17 @@ export function useElectronFolderLifecycle({
         await delayFn(200);
 
         const files = await api.readDirectory(folderPath, recursiveMode);
+        if (isCancelled()) return;
         const normalizedFiles = files.map((file) => normalizeVideoFromMain(file));
 
         setLoadingStage(`Found ${files.length} videos — initializing masonry...`);
         setLoadingProgress(70);
         await delayFn(200);
+        if (isCancelled()) return;
 
         setVideos(normalizedFiles);
         await delayFn(300);
+        if (isCancelled()) return;
 
         setLoadingStage("Complete!");
         setLoadingProgress(100);
@@ -137,7 +144,7 @@ export function useElectronFolderLifecycle({
         addRecentFolder(folderPath);
       } catch (error) {
         console.error("Error reading directory:", error);
-        setIsLoadingFolder(false);
+        if (!isCancelled()) setIsLoadingFolder(false);
       }
     },
     [
@@ -147,6 +154,13 @@ export function useElectronFolderLifecycle({
       resetDerivedVideoState,
     ]
   );
+
+  const cancelFolderLoad = useCallback(() => {
+    loadGenerationRef.current++;
+    setIsLoadingFolder(false);
+    setLoadingStage("");
+    setLoadingProgress(0);
+  }, []);
 
   const handleFolderSelect = useCallback(async () => {
     const res = await window.electronAPI?.selectFolder?.();
@@ -376,6 +390,7 @@ export function useElectronFolderLifecycle({
     videos,
     setVideos,
     isLoadingFolder,
+    cancelFolderLoad,
     loadingStage,
     loadingProgress,
     settingsLoaded,
