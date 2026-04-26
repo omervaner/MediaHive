@@ -169,7 +169,7 @@ function App() {
 
   // Duplicate finder state
   const [duplicateMode, setDuplicateMode] = useState(false);
-  const [duplicateGroups, setDuplicateGroups] = useState([]); // Array of arrays of {fingerprint, fullPath}
+  const [duplicateGroups, setDuplicateGroups] = useState([]); // Array of arrays of {file_id, fullPath}
   const [duplicateLoading, setDuplicateLoading] = useState(false);
 
   // Video collection state
@@ -332,12 +332,12 @@ function App() {
     addRecentFolder,
   });
 
-  // Compute duplicate fingerprints for filtering (needs to be before mediaFilteredVideos)
-  const duplicateFingerprints = useMemo(() => {
+  // Compute duplicate file IDs for filtering (needs to be before mediaFilteredVideos)
+  const duplicateFileIds = useMemo(() => {
     if (!duplicateMode || duplicateGroups.length === 0) return null;
     const set = new Set();
     duplicateGroups.forEach(group => {
-      group.forEach(item => set.add(item.fingerprint));
+      group.forEach(item => set.add(item.file_id));
     });
     return set;
   }, [duplicateMode, duplicateGroups]);
@@ -354,12 +354,12 @@ function App() {
     }
     
     // Apply duplicate filter when in duplicate mode
-    if (duplicateFingerprints) {
-      result = result.filter((v) => v.fingerprint && duplicateFingerprints.has(v.fingerprint));
+    if (duplicateFileIds) {
+      result = result.filter((v) => v.file_id && duplicateFileIds.has(v.file_id));
     }
     
     return result;
-  }, [videos, mediaFilter, duplicateFingerprints]);
+  }, [videos, mediaFilter, duplicateFileIds]);
 
   const {
     filters,
@@ -754,11 +754,11 @@ function App() {
       .filter(Boolean);
   }, [selection.selected, getById]);
 
-  const selectedFingerprints = useMemo(() => {
+  const selectedFileIds = useMemo(() => {
     const set = new Set();
     selectedVideos.forEach((video) => {
-      if (video?.fingerprint) {
-        set.add(video.fingerprint);
+      if (video?.file_id) {
+        set.add(video.file_id);
       }
     });
     return Array.from(set);
@@ -860,7 +860,7 @@ function App() {
     handleApplyExistingTag,
     refreshTagList,
   } = useMetadataActions({
-    selectedFingerprints,
+    selectedFileIds,
     setVideos,
     setAvailableTags,
     notify,
@@ -1055,13 +1055,13 @@ function App() {
         return;
       }
       if (actionId.startsWith("metadata:rate:")) {
-        if (!selectedFingerprints.length) return;
+        if (!selectedFileIds.length) return;
         if (actionId === "metadata:rate:clear") {
-          handleSetRating(null, selectedFingerprints);
+          handleSetRating(null, selectedFileIds);
         } else {
           const value = parseInt(actionId.replace("metadata:rate:", ""), 10);
           if (!Number.isNaN(value)) {
-            handleSetRating(value, selectedFingerprints);
+            handleSetRating(value, selectedFileIds);
           }
         }
         return;
@@ -1077,7 +1077,7 @@ function App() {
     },
     [
       openMetadataPanel,
-      selectedFingerprints,
+      selectedFileIds,
       handleSetRating,
       handleApplyExistingTag,
       runAction,
@@ -1310,17 +1310,17 @@ function App() {
     
     setDuplicateLoading(true);
     try {
-      // Get fingerprints for images only (videos can't be hashed this way)
-      const imageFingerprints = videos
-        .filter(v => v.mediaType === "image" && v.fingerprint)
-        .map(v => v.fingerprint);
-      
-      if (imageFingerprints.length < 2) {
+      // Get file IDs for images only (videos can't be hashed this way)
+      const imageFileIds = videos
+        .filter(v => v.mediaType === "image" && v.file_id)
+        .map(v => v.file_id);
+
+      if (imageFileIds.length < 2) {
         notify("Need at least 2 images to find duplicates", "info");
         return;
       }
-      
-      const result = await window.electronAPI?.duplicates?.find(imageFingerprints);
+
+      const result = await window.electronAPI?.duplicates?.find(imageFileIds);
       
       if (result?.success && result.groups?.length > 0) {
         setDuplicateGroups(result.groups);

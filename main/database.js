@@ -196,15 +196,33 @@ function initDatabase(app, profilePath) {
     }
   }
 
+  // Schema v2: re-key all metadata tables on file_id (dev+ino+createdMs)
+  // instead of fingerprint. Fingerprint is content-addressable so byte-
+  // identical files collided into one row, leaking metadata. v2 wipes any
+  // pre-v2 metadata and starts fresh.
+  const currentVersion = db.pragma('user_version', { simple: true });
+  if (currentVersion < 2) {
+    db.exec(`
+      DROP TABLE IF EXISTS captions;
+      DROP TABLE IF EXISTS ratings;
+      DROP TABLE IF EXISTS file_tags;
+      DROP TABLE IF EXISTS tags;
+      DROP TABLE IF EXISTS files;
+    `);
+    db.pragma('user_version = 2');
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS files (
-      fingerprint TEXT PRIMARY KEY,
+      file_id TEXT PRIMARY KEY,
+      fingerprint TEXT,
       last_known_path TEXT NOT NULL,
       size INTEGER NOT NULL,
       created_ms INTEGER,
       updated_at INTEGER NOT NULL,
       width INTEGER,
-      height INTEGER
+      height INTEGER,
+      phash TEXT
     );
 
     CREATE TABLE IF NOT EXISTS tags (
@@ -213,30 +231,31 @@ function initDatabase(app, profilePath) {
     );
 
     CREATE TABLE IF NOT EXISTS file_tags (
-      fingerprint TEXT NOT NULL,
+      file_id TEXT NOT NULL,
       tag_id INTEGER NOT NULL,
       added_at INTEGER NOT NULL,
-      PRIMARY KEY (fingerprint, tag_id),
-      FOREIGN KEY (fingerprint) REFERENCES files(fingerprint) ON DELETE CASCADE,
+      PRIMARY KEY (file_id, tag_id),
+      FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE,
       FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS ratings (
-      fingerprint TEXT PRIMARY KEY,
+      file_id TEXT PRIMARY KEY,
       value INTEGER NOT NULL CHECK (value BETWEEN 0 AND 5),
       updated_at INTEGER NOT NULL,
-      FOREIGN KEY (fingerprint) REFERENCES files(fingerprint) ON DELETE CASCADE
+      FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS captions (
-      fingerprint TEXT PRIMARY KEY,
+      file_id TEXT PRIMARY KEY,
       caption TEXT,
       tags TEXT,
       model TEXT,
       updated_at INTEGER NOT NULL,
-      FOREIGN KEY (fingerprint) REFERENCES files(fingerprint) ON DELETE CASCADE
+      FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
     );
 
+    CREATE INDEX IF NOT EXISTS idx_files_fingerprint ON files(fingerprint);
     CREATE INDEX IF NOT EXISTS idx_files_path ON files(last_known_path);
     CREATE INDEX IF NOT EXISTS idx_file_tags_tag ON file_tags(tag_id);
   `);
@@ -247,39 +266,11 @@ function initDatabase(app, profilePath) {
 }
 
 function createMetadataStore(db) {
-  const columns = new Set(
-    db
-      .prepare('PRAGMA table_info(files);')
-      .all()
-      .map((row) => row.name)
-  );
-
-  if (!columns.has('width')) {
-    try {
-      db.exec('ALTER TABLE files ADD COLUMN width INTEGER;');
-    } catch (error) {
-      if (!/duplicate column/i.test(error?.message || '')) throw error;
-    }
-  }
-  if (!columns.has('height')) {
-    try {
-      db.exec('ALTER TABLE files ADD COLUMN height INTEGER;');
-    } catch (error) {
-      if (!/duplicate column/i.test(error?.message || '')) throw error;
-    }
-  }
-  if (!columns.has('phash')) {
-    try {
-      db.exec('ALTER TABLE files ADD COLUMN phash TEXT;');
-    } catch (error) {
-      if (!/duplicate column/i.test(error?.message || '')) throw error;
-    }
-  }
-
   const fileUpsert = db.prepare(`
-    INSERT INTO files (fingerprint, last_known_path, size, created_ms, updated_at, width, height)
-    VALUES (@fingerprint, @last_known_path, @size, @created_ms, @updated_at, @width, @height)
-    ON CONFLICT(fingerprint) DO UPDATE SET
+    INSERT INTO files (file_id, fingerprint, last_known_path, size, created_ms, updated_at, width, height)
+    VALUES (@file_id, @fingerprint, @last_known_path, @size, @created_ms, @updated_at, @width, @height)
+    ON CONFLICT(file_id) DO UPDATE SET
+      fingerprint=excluded.fingerprint,
       last_known_path=excluded.last_known_path,
       size=excluded.size,
       created_ms=excluded.created_ms,
@@ -295,7 +286,7 @@ function createMetadataStore(db) {
 
   const tagSelect = db.prepare(`SELECT id, name FROM tags WHERE name = ? COLLATE NOCASE`);
   const tagUsage = db.prepare(`
-    SELECT t.name AS name, COUNT(ft.fingerprint) AS usageCount
+    SELECT t.name AS name, COUNT(ft.file_id) AS usageCount
     FROM tags t
     LEFT JOIN file_tags ft ON ft.tag_id = t.id
     GROUP BY t.id
@@ -303,37 +294,37 @@ function createMetadataStore(db) {
   `);
 
   const fileSelect = db.prepare(
-    'SELECT width, height, phash FROM files WHERE fingerprint = ?;'
+    'SELECT width, height, phash FROM files WHERE file_id = ?;'
   );
 
   const setDimensionsStmt = db.prepare(
-    'UPDATE files SET width = ?, height = ? WHERE fingerprint = ?;'
+    'UPDATE files SET width = ?, height = ? WHERE file_id = ?;'
   );
 
   const setPhashStmt = db.prepare(
-    'UPDATE files SET phash = ? WHERE fingerprint = ?;'
+    'UPDATE files SET phash = ? WHERE file_id = ?;'
   );
 
   const getPhashesStmt = db.prepare(
-    'SELECT fingerprint, phash, last_known_path FROM files WHERE fingerprint IN (SELECT value FROM json_each(?));'
+    'SELECT file_id, fingerprint, phash, last_known_path FROM files WHERE file_id IN (SELECT value FROM json_each(?));'
   );
 
-  const tagsForFingerprint = db.prepare(`
+  const tagsForFile = db.prepare(`
     SELECT t.name AS name
     FROM tags t
     INNER JOIN file_tags ft ON ft.tag_id = t.id
-    WHERE ft.fingerprint = ?
+    WHERE ft.file_id = ?
     ORDER BY t.name COLLATE NOCASE;
   `);
 
   const addTagLink = db.prepare(`
-    INSERT INTO file_tags (fingerprint, tag_id, added_at)
+    INSERT INTO file_tags (file_id, tag_id, added_at)
     VALUES (?, ?, ?)
-    ON CONFLICT(fingerprint, tag_id) DO NOTHING;
+    ON CONFLICT(file_id, tag_id) DO NOTHING;
   `);
 
   const removeTagLink = db.prepare(`
-    DELETE FROM file_tags WHERE fingerprint = ? AND tag_id = ?;
+    DELETE FROM file_tags WHERE file_id = ? AND tag_id = ?;
   `);
 
   const countTagUsage = db.prepare(
@@ -343,25 +334,25 @@ function createMetadataStore(db) {
   const deleteTagById = db.prepare("DELETE FROM tags WHERE id = ?;");
 
   const getRating = db.prepare(`
-    SELECT value FROM ratings WHERE fingerprint = ?;
+    SELECT value FROM ratings WHERE file_id = ?;
   `);
 
   const setRatingStmt = db.prepare(`
-    INSERT INTO ratings (fingerprint, value, updated_at)
+    INSERT INTO ratings (file_id, value, updated_at)
     VALUES (?, ?, ?)
-    ON CONFLICT(fingerprint) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at;
+    ON CONFLICT(file_id) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at;
   `);
 
-  const deleteRatingStmt = db.prepare(`DELETE FROM ratings WHERE fingerprint = ?;`);
+  const deleteRatingStmt = db.prepare(`DELETE FROM ratings WHERE file_id = ?;`);
 
   const getCaption = db.prepare(`
-    SELECT caption, tags, model, updated_at FROM captions WHERE fingerprint = ?;
+    SELECT caption, tags, model, updated_at FROM captions WHERE file_id = ?;
   `);
 
   const setCaptionStmt = db.prepare(`
-    INSERT INTO captions (fingerprint, caption, tags, model, updated_at)
+    INSERT INTO captions (file_id, caption, tags, model, updated_at)
     VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(fingerprint) DO UPDATE SET
+    ON CONFLICT(file_id) DO UPDATE SET
       caption=excluded.caption,
       tags=excluded.tags,
       model=excluded.model,
@@ -396,6 +387,7 @@ function createMetadataStore(db) {
   }
 
   function writeFileRecord(
+    file_id,
     fingerprint,
     filePath,
     stats,
@@ -407,6 +399,7 @@ function createMetadataStore(db) {
       stats.birthtimeMs || stats.ctimeMs || stats.mtimeMs || 0
     );
     fileUpsert.run({
+      file_id,
       fingerprint,
       last_known_path: filePath,
       size: Number(stats.size || 0),
@@ -425,11 +418,11 @@ function createMetadataStore(db) {
     return row ? row.id : null;
   }
 
-  function mapMetadataRow(fingerprint) {
-    const tags = tagsForFingerprint.all(fingerprint).map((row) => row.name);
-    const ratingRow = getRating.get(fingerprint);
-    const dimRow = fileSelect.get(fingerprint);
-    const captionRow = getCaption.get(fingerprint);
+  function mapMetadataRow(file_id) {
+    const tags = tagsForFile.all(file_id).map((row) => row.name);
+    const ratingRow = getRating.get(file_id);
+    const dimRow = fileSelect.get(file_id);
+    const captionRow = getCaption.get(file_id);
     let dimensions = null;
     if (dimRow) {
       const width = Number(dimRow.width) || 0;
@@ -449,13 +442,6 @@ function createMetadataStore(db) {
       } catch (e) {
         aiTags = null;
       }
-      // Debug: log when caption data is found
-      console.log("[DEBUG DB] mapMetadataRow found caption:", {
-        fingerprint: fingerprint?.slice(0, 20),
-        hasCaption: !!aiCaption,
-        captionLength: aiCaption?.length,
-        tagsCount: aiTags?.length,
-      });
     }
     return {
       tags,
@@ -467,29 +453,33 @@ function createMetadataStore(db) {
     };
   }
 
-  async function indexFile({ filePath, stats, dimensions }) {
+  async function indexFile({ filePath, stats, file_id, dimensions }) {
     if (!filePath) return null;
+    if (!file_id) {
+      throw new Error('indexFile requires file_id');
+    }
     const safeStats = stats || (await fs.promises.stat(filePath));
     const { fingerprint, createdMs } = await ensureFingerprint(filePath, safeStats);
-    writeFileRecord(fingerprint, filePath, safeStats, createdMs, dimensions);
+    writeFileRecord(file_id, fingerprint, filePath, safeStats, createdMs, dimensions);
     return {
+      file_id,
       fingerprint,
-      ...mapMetadataRow(fingerprint),
+      ...mapMetadataRow(file_id),
     };
   }
 
-  function getMetadataForFingerprints(fingerprints) {
+  function getMetadataForFileIds(fileIds) {
     const result = {};
-    (fingerprints || []).forEach((fp) => {
-      if (!fp) return;
-      result[fp] = mapMetadataRow(fp);
+    (fileIds || []).forEach((id) => {
+      if (!id) return;
+      result[id] = mapMetadataRow(id);
     });
     return result;
   }
 
-  function getDimensions(fingerprint) {
-    if (!fingerprint) return null;
-    const row = fileSelect.get(fingerprint);
+  function getDimensions(fileId) {
+    if (!fileId) return null;
+    const row = fileSelect.get(fileId);
     if (!row) return null;
     const width = Number(row.width) || 0;
     const height = Number(row.height) || 0;
@@ -499,23 +489,24 @@ function createMetadataStore(db) {
     return null;
   }
 
-  function setDimensions(fingerprint, dimensions) {
-    if (!fingerprint) return;
+  function setDimensions(fileId, dimensions) {
+    if (!fileId) return;
     const width = normalizeDimension(dimensions?.width);
     const height = normalizeDimension(dimensions?.height);
     if (!width || !height) return;
-    setDimensionsStmt.run(width, height, fingerprint);
+    setDimensionsStmt.run(width, height, fileId);
   }
 
-  function setPhash(fingerprint, phash) {
-    if (!fingerprint) return;
-    setPhashStmt.run(phash || null, fingerprint);
+  function setPhash(fileId, phash) {
+    if (!fileId) return;
+    setPhashStmt.run(phash || null, fileId);
   }
 
-  function getPhashes(fingerprints) {
-    if (!fingerprints || fingerprints.length === 0) return [];
-    const rows = getPhashesStmt.all(JSON.stringify(fingerprints));
+  function getPhashes(fileIds) {
+    if (!fileIds || fileIds.length === 0) return [];
+    const rows = getPhashesStmt.all(JSON.stringify(fileIds));
     return rows.map(row => ({
+      file_id: row.file_id,
       fingerprint: row.fingerprint,
       phash: row.phash,
       fullPath: row.last_known_path,
@@ -526,25 +517,25 @@ function createMetadataStore(db) {
     return tagUsage.all();
   }
 
-  function assignTags(fingerprints, tagNames) {
+  function assignTags(fileIds, tagNames) {
     const now = Date.now();
     const applied = {};
     const txn = db.transaction(() => {
-      fingerprints.forEach((fingerprint) => {
-        if (!fingerprint) return;
+      fileIds.forEach((fileId) => {
+        if (!fileId) return;
         (tagNames || []).forEach((nameRaw) => {
           const id = getTagId(nameRaw);
           if (!id) return;
-          addTagLink.run(fingerprint, id, now);
+          addTagLink.run(fileId, id, now);
         });
-        applied[fingerprint] = mapMetadataRow(fingerprint);
+        applied[fileId] = mapMetadataRow(fileId);
       });
     });
     txn();
     return applied;
   }
 
-  function removeTag(fingerprints, tagName) {
+  function removeTag(fileIds, tagName) {
     const name = (tagName || "").trim();
     if (!name) return {};
     const existing = tagSelect.get(name);
@@ -552,10 +543,10 @@ function createMetadataStore(db) {
     const id = existing.id;
     const removed = {};
     const txn = db.transaction(() => {
-      fingerprints.forEach((fingerprint) => {
-        if (!fingerprint) return;
-        removeTagLink.run(fingerprint, id);
-        removed[fingerprint] = mapMetadataRow(fingerprint);
+      fileIds.forEach((fileId) => {
+        if (!fileId) return;
+        removeTagLink.run(fileId, id);
+        removed[fileId] = mapMetadataRow(fileId);
       });
 
       const usageRow = countTagUsage.get(id);
@@ -568,64 +559,36 @@ function createMetadataStore(db) {
     return removed;
   }
 
-  function setRating(fingerprints, rating) {
+  function setRating(fileIds, rating) {
     const updates = {};
     const now = Date.now();
     const txn = db.transaction(() => {
-      fingerprints.forEach((fingerprint) => {
-        if (!fingerprint) return;
+      fileIds.forEach((fileId) => {
+        if (!fileId) return;
         if (rating === null || rating === undefined) {
-          deleteRatingStmt.run(fingerprint);
+          deleteRatingStmt.run(fileId);
         } else {
           const safeRating = Math.max(0, Math.min(5, Math.round(Number(rating))));
-          setRatingStmt.run(fingerprint, safeRating, now);
+          setRatingStmt.run(fileId, safeRating, now);
         }
-        updates[fingerprint] = mapMetadataRow(fingerprint);
+        updates[fileId] = mapMetadataRow(fileId);
       });
     });
     txn();
     return updates;
   }
 
-  function setCaption(fingerprint, caption, aiTags, model) {
-    if (!fingerprint) {
-      console.log("[DEBUG DB] setCaption: REJECTED - no fingerprint");
-      return null;
-    }
+  function setCaption(fileId, caption, aiTags, model) {
+    if (!fileId) return null;
     const now = Date.now();
     const tagsJson = aiTags ? JSON.stringify(aiTags) : null;
-    console.log("[DEBUG DB] setCaption WRITING:", {
-      fingerprint: fingerprint?.slice(0, 20),
-      captionLength: caption?.length,
-      tagsCount: aiTags?.length,
-      tagsJson: tagsJson?.slice(0, 100),
-      model,
-    });
-
-    // Write to DB
-    const writeResult = setCaptionStmt.run(fingerprint, caption || null, tagsJson, model || null, now);
-    console.log("[DEBUG DB] setCaption write result:", { changes: writeResult.changes });
-
-    // Immediately verify write by reading back
-    const verifyRow = getCaption.get(fingerprint);
-    console.log("[DEBUG DB] setCaption VERIFY read back:", {
-      found: !!verifyRow,
-      caption: verifyRow?.caption?.slice(0, 50),
-      tags: verifyRow?.tags?.slice(0, 50),
-      model: verifyRow?.model,
-    });
-
-    const result = mapMetadataRow(fingerprint);
-    console.log("[DEBUG DB] setCaption mapped result:", {
-      aiCaption: result?.aiCaption?.slice(0, 50),
-      aiTagsCount: result?.aiTags?.length,
-    });
-    return result;
+    setCaptionStmt.run(fileId, caption || null, tagsJson, model || null, now);
+    return mapMetadataRow(fileId);
   }
 
   return {
     indexFile,
-    getMetadataForFingerprints,
+    getMetadataForFileIds,
     listTags,
     assignTags,
     removeTag,

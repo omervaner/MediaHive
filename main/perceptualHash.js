@@ -77,46 +77,47 @@ function hammingDistance(hash1, hash2) {
 
 /**
  * Find groups of duplicate/similar images based on perceptual hash.
- * 
- * @param {Array<{fingerprint: string, phash: string, fullPath: string}>} items - Items with hashes
+ *
+ * @param {Array<{file_id: string, phash: string, fullPath: string}>} items - Items with hashes
  * @param {number} threshold - Maximum Hamming distance to consider duplicates (default: 5)
- * @returns {Array<Array<{fingerprint: string, phash: string, fullPath: string}>>} Groups of duplicates
+ * @returns {Array<Array<{file_id: string, phash: string, fullPath: string}>>} Groups of duplicates
  */
 function findDuplicateGroups(items, threshold = 5) {
   // Filter to items with valid hashes
   const withHashes = items.filter(item => item.phash && item.phash.length === 16);
-  
+
   if (withHashes.length < 2) {
     return [];
   }
 
-  // Track which items have been assigned to a group
+  // Dedupe by file_id (physical file). Keying on fingerprint would skip
+  // byte-identical files since they share a fingerprint.
   const assigned = new Set();
   const groups = [];
 
   for (let i = 0; i < withHashes.length; i++) {
     const item = withHashes[i];
-    
-    if (assigned.has(item.fingerprint)) {
+
+    if (assigned.has(item.file_id)) {
       continue;
     }
 
     // Find all items similar to this one
     const group = [item];
-    assigned.add(item.fingerprint);
+    assigned.add(item.file_id);
 
     for (let j = i + 1; j < withHashes.length; j++) {
       const other = withHashes[j];
-      
-      if (assigned.has(other.fingerprint)) {
+
+      if (assigned.has(other.file_id)) {
         continue;
       }
 
       const distance = hammingDistance(item.phash, other.phash);
-      
+
       if (distance <= threshold) {
         group.push(other);
-        assigned.add(other.fingerprint);
+        assigned.add(other.file_id);
       }
     }
 

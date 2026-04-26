@@ -295,7 +295,7 @@ const activeBatchOps = new Map();
 
 /**
  * Process a batch of images for captioning
- * @param {Array} files - Array of {fullPath, name, fingerprint} objects
+ * @param {Array} files - Array of {fullPath, name, file_id} objects
  * @param {object} options - Options
  * @param {string} options.model - Model to use
  * @param {string} options.endpoint - Ollama endpoint
@@ -431,7 +431,7 @@ async function batchCaption(files, options = {}) {
         results.push({
           path: file.fullPath,
           name: file.name,
-          fingerprint: file.fingerprint,
+          file_id: file.file_id,
           caption,
           tags,
           success: true,
@@ -456,7 +456,7 @@ async function batchCaption(files, options = {}) {
         results.push({
           path: file.fullPath,
           name: file.name,
-          fingerprint: file.fingerprint,
+          file_id: file.file_id,
           error: error.message,
           success: false,
         });

@@ -2,21 +2,21 @@ import { useCallback } from "react";
 import { normalizeVideoFromMain } from "../videoNormalization";
 
 export function useMetadataActions({
-  selectedFingerprints,
+  selectedFileIds,
   setVideos,
   setAvailableTags,
   notify,
 }) {
-  const applyMetadataPatch = useCallback((updates) => {
-    if (!updates || typeof updates !== "object") return;
+  const applyMetadataPatch = useCallback((updatesByFileId) => {
+    if (!updatesByFileId || typeof updatesByFileId !== "object") return;
     setVideos((prev) =>
       prev.map((video) => {
-        const fingerprint = video?.fingerprint;
-        if (!fingerprint || !updates[fingerprint]) return video;
+        const fileId = video?.file_id;
+        if (!fileId || !updatesByFileId[fileId]) return video;
         return normalizeVideoFromMain({
           ...video,
-          ...updates[fingerprint],
-          fingerprint,
+          ...updatesByFileId[fileId],
+          file_id: fileId,
         });
       })
     );
@@ -26,18 +26,18 @@ export function useMetadataActions({
     async (tagNames) => {
       const api = window.electronAPI?.metadata;
       if (!api?.addTags) return;
-      const fingerprints = selectedFingerprints;
-      if (!fingerprints.length) return;
+      const fileIds = selectedFileIds;
+      if (!fileIds.length) return;
       const cleanNames = Array.isArray(tagNames)
         ? tagNames.map((name) => name.trim()).filter(Boolean)
         : [];
       if (!cleanNames.length) return;
       try {
-        const result = await api.addTags(fingerprints, cleanNames);
+        const result = await api.addTags(fileIds, cleanNames);
         if (result?.updates) applyMetadataPatch(result.updates);
         if (Array.isArray(result?.tags)) setAvailableTags(result.tags);
         notify(
-          `Added ${cleanNames.join(", ")} to ${fingerprints.length} item(s)`,
+          `Added ${cleanNames.join(", ")} to ${fileIds.length} item(s)`,
           "success"
         );
       } catch (error) {
@@ -45,22 +45,22 @@ export function useMetadataActions({
         notify("Failed to add tags", "error");
       }
     },
-    [selectedFingerprints, applyMetadataPatch, setAvailableTags, notify]
+    [selectedFileIds, applyMetadataPatch, setAvailableTags, notify]
   );
 
   const handleRemoveTag = useCallback(
     async (tagName) => {
       const api = window.electronAPI?.metadata;
       if (!api?.removeTag) return;
-      const fingerprints = selectedFingerprints;
+      const fileIds = selectedFileIds;
       const cleanName = (tagName ?? "").trim();
-      if (!fingerprints.length || !cleanName) return;
+      if (!fileIds.length || !cleanName) return;
       try {
-        const result = await api.removeTag(fingerprints, cleanName);
+        const result = await api.removeTag(fileIds, cleanName);
         if (result?.updates) applyMetadataPatch(result.updates);
         if (Array.isArray(result?.tags)) setAvailableTags(result.tags);
         notify(
-          `Removed "${cleanName}" from ${fingerprints.length} item(s)`,
+          `Removed "${cleanName}" from ${fileIds.length} item(s)`,
           "success"
         );
       } catch (error) {
@@ -68,28 +68,28 @@ export function useMetadataActions({
         notify("Failed to remove tag", "error");
       }
     },
-    [selectedFingerprints, applyMetadataPatch, setAvailableTags, notify]
+    [selectedFileIds, applyMetadataPatch, setAvailableTags, notify]
   );
 
   const handleClearAllTags = useCallback(
     async (tagNames) => {
       const api = window.electronAPI?.metadata;
       if (!api?.removeTag) return;
-      const fingerprints = selectedFingerprints;
-      if (!fingerprints.length || !tagNames?.length) return;
+      const fileIds = selectedFileIds;
+      if (!fileIds.length || !tagNames?.length) return;
       try {
         let lastResult = null;
         for (const tagName of tagNames) {
           const cleanName = (tagName ?? "").trim();
           if (!cleanName) continue;
-          lastResult = await api.removeTag(fingerprints, cleanName);
+          lastResult = await api.removeTag(fileIds, cleanName);
           if (lastResult?.updates) applyMetadataPatch(lastResult.updates);
         }
         if (lastResult && Array.isArray(lastResult?.tags)) {
           setAvailableTags(lastResult.tags);
         }
         notify(
-          `Cleared ${tagNames.length} tag(s) from ${fingerprints.length} item(s)`,
+          `Cleared ${tagNames.length} tag(s) from ${fileIds.length} item(s)`,
           "success"
         );
       } catch (error) {
@@ -97,24 +97,24 @@ export function useMetadataActions({
         notify("Failed to clear tags", "error");
       }
     },
-    [selectedFingerprints, applyMetadataPatch, setAvailableTags, notify]
+    [selectedFileIds, applyMetadataPatch, setAvailableTags, notify]
   );
 
   const handleSetRating = useCallback(
-    async (value, targetFingerprints = selectedFingerprints) => {
+    async (value, targetFileIds = selectedFileIds) => {
       const api = window.electronAPI?.metadata;
       if (!api?.setRating) return;
-      const fingerprints = (targetFingerprints || []).filter(Boolean);
-      if (!fingerprints.length) return;
+      const fileIds = (targetFileIds || []).filter(Boolean);
+      if (!fileIds.length) return;
       try {
-        const result = await api.setRating(fingerprints, value);
+        const result = await api.setRating(fileIds, value);
         if (result?.updates) applyMetadataPatch(result.updates);
         if (value === null || value === undefined) {
-          notify(`Cleared rating for ${fingerprints.length} item(s)`, "success");
+          notify(`Cleared rating for ${fileIds.length} item(s)`, "success");
         } else {
           const safeRating = Math.max(0, Math.min(5, Math.round(Number(value))));
           notify(
-            `Rated ${fingerprints.length} item(s) ${safeRating} star${
+            `Rated ${fileIds.length} item(s) ${safeRating} star${
               safeRating === 1 ? "" : "s"
             }`,
             "success"
@@ -125,12 +125,12 @@ export function useMetadataActions({
         notify("Failed to update rating", "error");
       }
     },
-    [selectedFingerprints, applyMetadataPatch, notify]
+    [selectedFileIds, applyMetadataPatch, notify]
   );
 
   const handleClearRating = useCallback(() => {
-    handleSetRating(null, selectedFingerprints);
-  }, [handleSetRating, selectedFingerprints]);
+    handleSetRating(null, selectedFileIds);
+  }, [handleSetRating, selectedFileIds]);
 
   const handleApplyExistingTag = useCallback(
     (tagName) => handleAddTags([tagName]),

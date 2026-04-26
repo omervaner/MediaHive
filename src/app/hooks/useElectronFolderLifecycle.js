@@ -188,6 +188,7 @@ export function useElectronFolderLifecycle({
         basename: f.name,
         dirname: "",
         createdMs: f.lastModified || 0,
+        file_id: null,
         fingerprint: null,
         tags: [],
         rating: null,

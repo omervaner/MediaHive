@@ -54,12 +54,15 @@ if (!hasNativeDriver || databaseLoadError) {
     });
 
     it("creates independent stores per profile", async () => {
+      const { buildFileId } = require("../fileId");
       initMetadataStore(mockApp, profileA);
       const storeA = getMetadataStore();
       const filePath = path.join(profileA, "sample-a.mp4");
       fs.writeFileSync(filePath, "a");
       const stats = fs.statSync(filePath);
-      const indexed = await storeA.indexFile({ filePath, stats });
+      const file_id = await buildFileId(filePath);
+      const indexed = await storeA.indexFile({ filePath, stats, file_id });
+      expect(indexed.file_id).toBeTruthy();
       expect(indexed.fingerprint).toBeTruthy();
 
       // Switch profile
@@ -67,8 +70,8 @@ if (!hasNativeDriver || databaseLoadError) {
 
       initMetadataStore(mockApp, profileB);
       const storeB = getMetadataStore();
-      const metadata = storeB.getMetadataForFingerprints([indexed.fingerprint]);
-      expect(metadata[indexed.fingerprint]).toBeUndefined();
+      const metadata = storeB.getMetadataForFileIds([indexed.file_id]);
+      expect(metadata[indexed.file_id]).toBeUndefined();
 
       const dbAPath = path.join(profileA, "videoswarm-meta.db");
       const dbBPath = path.join(profileB, "videoswarm-meta.db");

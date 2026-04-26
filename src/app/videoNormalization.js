@@ -1,5 +1,9 @@
 export const normalizeVideoFromMain = (video) => {
   if (!video || typeof video !== "object") return video;
+  const file_id =
+    typeof video.file_id === "string" && video.file_id.length > 0
+      ? video.file_id
+      : null;
   const fingerprint =
     typeof video.fingerprint === "string" && video.fingerprint.length > 0
       ? video.fingerprint
@@ -52,6 +56,7 @@ export const normalizeVideoFromMain = (video) => {
 
   return {
     ...video,
+    file_id,
     fingerprint,
     rating,
     tags,

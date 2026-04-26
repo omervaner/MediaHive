@@ -140,7 +140,7 @@ export default function BatchCaptionDialog({
         filesToProcess.map((f) => ({
           fullPath: f.fullPath,
           name: f.name,
-          fingerprint: f.fingerprint,
+          file_id: f.file_id,
         })),
         {
           batchId: newBatchId,

@@ -60,11 +60,11 @@ function init({ ipcMain, getCurrentSettings, loadSettings, getStore }) {
         // Save each successful caption immediately to the database
         if (progress.lastResult?.success && progress.currentPath) {
           const file = files.find((f) => f.fullPath === progress.currentPath);
-          if (file?.fingerprint) {
+          if (file?.file_id) {
             try {
               // Save caption to captions table
               store.setCaption(
-                file.fingerprint,
+                file.file_id,
                 progress.lastResult.caption,
                 progress.lastResult.tags,
                 model
@@ -72,7 +72,7 @@ function init({ ipcMain, getCurrentSettings, loadSettings, getStore }) {
 
               // For batch operations, also save AI tags as regular tags (auto-apply)
               if (progress.lastResult.tags?.length > 0) {
-                store.assignTags([file.fingerprint], progress.lastResult.tags);
+                store.assignTags([file.file_id], progress.lastResult.tags);
               }
 
               progress.lastResult.saved = true;

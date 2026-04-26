@@ -7,6 +7,7 @@ const { getVideoDimensions } = require("./videoDimensions");
 const { getImageDimensions } = require("./imageDimensions");
 const { detectScreenshot } = require("./screenshotDetector");
 const { createFolderWatcher } = require("./watcher");
+const { buildFileId } = require("./fileId");
 
 let deps = null;
 
@@ -55,6 +56,7 @@ async function createVideoFileObject(filePath, baseFolderPath) {
   const { getStore } = ensureInit();
   try {
     const stats = await fsPromises.stat(filePath);
+    const file_id = await buildFileId(filePath);
     const fileName = path.basename(filePath);
     const ext = path.extname(fileName).toLowerCase();
     let dirname = path.relative(baseFolderPath, path.dirname(filePath));
@@ -72,7 +74,7 @@ async function createVideoFileObject(filePath, baseFolderPath) {
 
     try {
       const metadataStore = getStore();
-      const info = await metadataStore.indexFile({ filePath, stats });
+      const info = await metadataStore.indexFile({ filePath, stats, file_id });
       fingerprint = info?.fingerprint ?? null;
       tags = Array.isArray(info?.tags) ? info.tags : [];
       rating =
@@ -82,19 +84,10 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       aiCaption = info?.aiCaption ?? null;
       aiTags = Array.isArray(info?.aiTags) ? info.aiTags : null;
 
-      // Debug: log if caption data exists
-      if (aiCaption || aiTags) {
-        console.log("[DEBUG] Loaded caption data for", path.basename(filePath), {
-          fingerprint: fingerprint?.slice(0, 20),
-          captionLength: aiCaption?.length,
-          tagsCount: aiTags?.length,
-        });
-      }
-
       if (isValidDimensions(info?.dimensions)) {
         dimensions = info.dimensions;
-      } else if (fingerprint) {
-        const storedDims = metadataStore.getDimensions(fingerprint);
+      } else {
+        const storedDims = metadataStore.getDimensions(file_id);
         if (isValidDimensions(storedDims)) {
           dimensions = storedDims;
         }
@@ -107,9 +100,7 @@ async function createVideoFileObject(filePath, baseFolderPath) {
           : await getVideoDimensions(filePath, stats);
         if (isValidDimensions(computed)) {
           dimensions = computed;
-          if (fingerprint) {
-            metadataStore.setDimensions(fingerprint, computed);
-          }
+          metadataStore.setDimensions(file_id, computed);
         }
       }
     } catch (metaError) {
@@ -140,6 +131,7 @@ async function createVideoFileObject(filePath, baseFolderPath) {
       basename: fileName,
       dirname,
       createdMs: stats.birthtimeMs || stats.ctimeMs || stats.mtimeMs,
+      file_id,
       fingerprint,
       tags,
       rating,

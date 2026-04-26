@@ -3,12 +3,12 @@ const { computeDHash, findDuplicateGroups } = require("./perceptualHash");
 
 function init({ ipcMain, getStore }) {
   // Duplicate finder handlers
-  ipcMain.handle('duplicates:find', async (_event, fingerprints) => {
+  ipcMain.handle('duplicates:find', async (_event, fileIds) => {
     try {
       const store = getStore();
 
       // Get existing hashes from database
-      const items = store.getPhashes(fingerprints);
+      const items = store.getPhashes(fileIds);
 
       // Compute missing hashes
       const needsHash = items.filter(item => !item.phash);
@@ -25,7 +25,7 @@ function init({ ipcMain, getStore }) {
           const phash = await computeDHash(item.fullPath);
           if (phash) {
             item.phash = phash;
-            store.setPhash(item.fingerprint, phash);
+            store.setPhash(item.file_id, phash);
           }
         } catch (err) {
           console.warn('[duplicates] Failed to hash', item.fullPath, err.message);
@@ -39,7 +39,7 @@ function init({ ipcMain, getStore }) {
       return {
         success: true,
         groups: groups.map(group => group.map(item => ({
-          fingerprint: item.fingerprint,
+          file_id: item.file_id,
           fullPath: item.fullPath,
         }))),
       };
