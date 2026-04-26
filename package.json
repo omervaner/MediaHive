@@ -93,6 +93,11 @@
       "src/config/supportContent.json",
       "package.json"
     ],
+    "asarUnpack": [
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/**",
+      "**/node_modules/better-sqlite3/**"
+    ],
     "extraResources": [
       {
         "from": "README.md",
@@ -115,7 +120,7 @@
         }
       ],
       "artifactName": "MediaHive-${version}-win-${arch}.${ext}",
-      "icon": "icons/mediahive.ico",
+      "icon": "assets/icons/mediahive.png",
       "publisherName": "omervaner",
       "verifyUpdateCodeSignature": false
     },
@@ -123,7 +128,13 @@
       "artifactName": "MediaHive-${version}-win-${arch}-Portable.${ext}"
     },
     "mac": {
-      "target": []
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "MediaHive-${version}-mac.${ext}",
+      "icon": "assets/icons/mediahive.png",
+      "category": "public.app-category.utilities"
     },
     "linux": {
       "target": [
@@ -131,7 +142,7 @@
         "deb"
       ],
       "artifactName": "MediaHive-${version}-linux.${ext}",
-      "icon": "icons/mediahive.png",
+      "icon": "assets/icons/mediahive.png",
       "category": "Utility",
       "executableName": "media-hive",
       "desktop": {
