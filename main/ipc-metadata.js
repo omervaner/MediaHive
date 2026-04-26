@@ -95,19 +95,12 @@ function init({ ipcMain, getStore }) {
   ipcMain.handle(
     "metadata:set-caption",
     async (_event, fingerprint, caption, aiTags, model) => {
-      console.log("[DEBUG] metadata:set-caption called:", {
-        fingerprint: fingerprint?.slice(0, 20) + "...",
-        captionLength: caption?.length,
-        tagsCount: aiTags?.length,
-        model,
-      });
       try {
         const store = getStore();
         if (!fingerprint) {
           return { success: false, error: "No fingerprint provided" };
         }
         const result = store.setCaption(fingerprint, caption, aiTags, model);
-        console.log("[DEBUG] setCaption result:", result);
         return { success: true, metadata: result };
       } catch (error) {
         console.error("Failed to save caption:", error);

@@ -1,5 +1,6 @@
-// src/hooks/useVideoStallWatchdog.js
 // Shared, ultra-light scheduler to avoid N intervals for N cards.
+// Not a React hook despite the legacy name — it just registers a
+// subscriber on a shared interval and returns a teardown.
 const subs = new Map(); // id -> { check(now) }
 let timer = null;
 
@@ -33,7 +34,7 @@ function stop() {
  *   ticksToStall:  consecutive ticks with no progress before recovery (default 3)
  *   maxLogsPerMin: rate-limit per-id (default 1)
  */
-export function useVideoStallWatchdog(videoRef, {
+export function subscribeVideoStallWatchdog(videoRef, {
   id,
   enabled = true,
   tickMs = 2000,

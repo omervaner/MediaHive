@@ -121,9 +121,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   onSettingsLoaded: (callback) => {
-    ipcRenderer.on("settings-loaded", (event, settings) => {
-      callback(settings);
-    });
+    const handler = (_event, settings) => callback(settings);
+    ipcRenderer.on("settings-loaded", handler);
+    return () => ipcRenderer.removeListener("settings-loaded", handler);
   },
 
   profiles: {

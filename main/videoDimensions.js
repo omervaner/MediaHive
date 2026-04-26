@@ -5,12 +5,31 @@ const MP4_EXTENSIONS = new Set([".mp4", ".m4v", ".mov", ".qt"]); // quicktime fa
 
 const MATROSKA_EXTENSIONS = new Set([".mkv", ".webm", ".mk3d", ".mka"]);
 
+const CACHE_MAX = 5000;
 const CACHE = new Map();
 
 function cacheKey(filePath, stats) {
   const size = stats?.size ?? 0;
   const mtimeMs = stats?.mtimeMs ?? 0;
   return `${filePath}::${size}::${mtimeMs}`;
+}
+
+function cacheGet(key) {
+  if (!CACHE.has(key)) return undefined;
+  const value = CACHE.get(key);
+  CACHE.delete(key);
+  CACHE.set(key, value);
+  return value;
+}
+
+function cacheSet(key, value) {
+  if (CACHE.has(key)) {
+    CACHE.delete(key);
+  } else if (CACHE.size >= CACHE_MAX) {
+    const oldest = CACHE.keys().next().value;
+    CACHE.delete(oldest);
+  }
+  CACHE.set(key, value);
 }
 
 function readFixed1616(buffer, offset) {
@@ -364,9 +383,8 @@ async function extractMatroskaDimensions(filePath) {
 
 async function getVideoDimensions(filePath, stats = null) {
   const key = cacheKey(filePath, stats);
-  if (CACHE.has(key)) {
-    return CACHE.get(key);
-  }
+  const cached = cacheGet(key);
+  if (cached !== undefined) return cached;
 
   const ext = path.extname(filePath).toLowerCase();
   let dims = null;
@@ -392,7 +410,7 @@ async function getVideoDimensions(filePath, stats = null) {
     dims = null;
   }
 
-  CACHE.set(key, dims);
+  cacheSet(key, dims);
   return dims;
 }
 

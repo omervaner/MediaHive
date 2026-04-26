@@ -227,13 +227,11 @@ function init(receivedDeps) {
 
   // NEW: Synchronous-ish settings getter - returns cached settings immediately
   ipcMain.handle("get-settings", async () => {
-    console.log("get-settings called, returning:", currentSettings);
     return currentSettings || defaultSettings;
   });
 
   // NEW: Request settings (for refresh scenarios)
   ipcMain.handle("request-settings", async () => {
-    console.log("request-settings called, sending settings via IPC");
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(

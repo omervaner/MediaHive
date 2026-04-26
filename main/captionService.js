@@ -363,12 +363,6 @@ async function batchCaption(files, options = {}) {
         });
       }
 
-      console.log("[DEBUG captionService] Processing file", i + 1, "of", files.length, {
-        name: file.name,
-        fingerprint: file.fingerprint?.slice(0, 20),
-        hasFingerprint: !!file.fingerprint,
-      });
-
       try {
         let caption = null;
         let tags = null;
@@ -443,14 +437,6 @@ async function batchCaption(files, options = {}) {
           success: true,
         });
         completed++;
-
-        console.log("[DEBUG captionService] File completed successfully:", {
-          name: file.name,
-          fingerprint: file.fingerprint?.slice(0, 20),
-          captionLength: caption?.length,
-          tagsCount: tags?.length,
-          tags: tags?.slice(0, 3),
-        });
 
         // Send progress with result
         if (onProgress) {

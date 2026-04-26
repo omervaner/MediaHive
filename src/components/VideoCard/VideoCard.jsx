@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
 import { classifyMediaError } from "./mediaError";
 import { toFileURL, hardDetach } from "./videoDom";
-import { useVideoStallWatchdog } from "../../hooks/useVideoStallWatchdog";
+import { subscribeVideoStallWatchdog } from "../../hooks/subscribeVideoStallWatchdog";
 import { thumbService, signatureForVideo } from "../../services/thumbService";
 import ImageElement from "./ImageElement";
 
@@ -316,7 +316,7 @@ const VideoCard = memo(function VideoCard({
       loaded && isPlaying && isVisible && !isAdoptedByModal() && !permanentErrorRef.current;
     let teardown = null;
     if (enable) {
-      teardown = useVideoStallWatchdog(videoRef, {
+      teardown = subscribeVideoStallWatchdog(videoRef, {
         id: videoId,
         tickMs: 2500,        // slightly slower to reduce overhead
         minDeltaSec: 0.12,
@@ -866,7 +866,6 @@ const VideoCard = memo(function VideoCard({
               onStopLoading?.(videoId);
             }}
             onError={(e) => {
-              setErrorText("Failed to load image");
               onPlayError?.(videoId, e);
               onStopLoading?.(videoId);
             }}

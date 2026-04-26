@@ -52,39 +52,14 @@ function init({ ipcMain, getCurrentSettings, loadSettings, getStore }) {
 
     const store = getStore();
 
-    console.log("[DEBUG] caption:batch starting with", files.length, "files");
-    // Log first few files to verify structure
-    console.log("[DEBUG] First file structure:", files[0] ? {
-      fullPath: files[0].fullPath,
-      name: files[0].name,
-      fingerprint: files[0].fingerprint?.slice(0, 20),
-      hasFingerprint: !!files[0].fingerprint,
-    } : "NO FILES");
-
     return captionService.batchCaption(files, {
       ...options,
       model,
       endpoint,
       onProgress: (progress) => {
-        console.log("[DEBUG] batch progress:", {
-          current: progress.current,
-          total: progress.total,
-          status: progress.status,
-          hasLastResult: !!progress.lastResult,
-          lastResultSuccess: progress.lastResult?.success,
-          currentPath: progress.currentPath,
-        });
-
         // Save each successful caption immediately to the database
         if (progress.lastResult?.success && progress.currentPath) {
           const file = files.find((f) => f.fullPath === progress.currentPath);
-          console.log("[DEBUG] Looking for file to save:", {
-            currentPath: progress.currentPath,
-            foundFile: !!file,
-            fingerprint: file?.fingerprint?.slice(0, 20),
-            captionLength: progress.lastResult.caption?.length,
-            tagsCount: progress.lastResult.tags?.length,
-          });
           if (file?.fingerprint) {
             try {
               // Save caption to captions table
@@ -100,14 +75,11 @@ function init({ ipcMain, getCurrentSettings, loadSettings, getStore }) {
                 store.assignTags([file.fingerprint], progress.lastResult.tags);
               }
 
-              console.log("[DEBUG] Caption and tags saved for", file.fingerprint?.slice(0, 20));
               progress.lastResult.saved = true;
             } catch (err) {
               console.error("Failed to save caption for", progress.currentPath, err);
               progress.lastResult.saveError = err.message;
             }
-          } else {
-            console.log("[DEBUG] No fingerprint found for file, cannot save");
           }
         }
         event.sender.send("caption:batch-progress", progress);

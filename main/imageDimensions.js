@@ -1,6 +1,6 @@
-const path = require("path");
 const sharp = require("sharp");
 
+const CACHE_MAX = 5000;
 const CACHE = new Map();
 
 function cacheKey(filePath, stats) {
@@ -9,14 +9,28 @@ function cacheKey(filePath, stats) {
   return `${filePath}::${size}::${mtimeMs}`;
 }
 
+function cacheGet(key) {
+  if (!CACHE.has(key)) return undefined;
+  const value = CACHE.get(key);
+  CACHE.delete(key);
+  CACHE.set(key, value);
+  return value;
+}
+
+function cacheSet(key, value) {
+  if (CACHE.has(key)) {
+    CACHE.delete(key);
+  } else if (CACHE.size >= CACHE_MAX) {
+    const oldest = CACHE.keys().next().value;
+    CACHE.delete(oldest);
+  }
+  CACHE.set(key, value);
+}
+
 async function getImageDimensions(filePath, stats = null) {
   const key = cacheKey(filePath, stats);
-  if (CACHE.has(key)) {
-    console.log('[imageDimensions] Cache hit:', path.basename(filePath));
-    return CACHE.get(key);
-  }
-
-  console.log('[imageDimensions] Computing for:', path.basename(filePath));
+  const cached = cacheGet(key);
+  if (cached !== undefined) return cached;
 
   try {
     const metadata = await sharp(filePath).metadata();
@@ -28,7 +42,6 @@ async function getImageDimensions(filePath, stats = null) {
     const orientation = metadata.orientation;
     if (orientation >= 5 && orientation <= 8) {
       [width, height] = [height, width];
-      console.log('[imageDimensions] EXIF orientation', orientation, '- swapped to', width, 'x', height);
     }
 
     if (width > 0 && height > 0) {
@@ -37,16 +50,13 @@ async function getImageDimensions(filePath, stats = null) {
         height: Math.round(height),
         aspectRatio: width / height,
       };
-      console.log('[imageDimensions] Success:', path.basename(filePath), dims);
-      // Only cache successful results
-      CACHE.set(key, dims);
+      cacheSet(key, dims);
       return dims;
     }
 
-    console.log('[imageDimensions] Invalid dimensions from sharp:', path.basename(filePath));
     return null;
   } catch (error) {
-    console.warn('[imageDimensions] Failed:', path.basename(filePath), error.message);
+    console.warn('[imageDimensions] Failed:', filePath, error.message);
     return null;
   }
 }

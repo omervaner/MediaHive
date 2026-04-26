@@ -13,7 +13,6 @@ module.exports = function registerTrashIPC(ipcMain) {
                 return { success: false, moved: [], failed: [{ path: null, error: 'Invalid payload (expected array)' }] };
             }
 
-            console.log(`[bulk-move-to-trash] requested: ${paths.length} item(s)`);
             for (const p of paths) {
                 if (typeof p !== 'string' || !p.trim()) {
                     console.warn('[bulk-move-to-trash] skip invalid path:', p);
@@ -30,7 +29,6 @@ module.exports = function registerTrashIPC(ipcMain) {
                     // Electron’s shell.trashItem returns a Promise that resolves on success
                     await shell.trashItem(p);
                     results.moved.push(p);
-                    console.log('[bulk-move-to-trash] moved to trash:', p);
                 } catch (e) {
                     const msg = (e && e.message) || String(e);
                     console.error('[bulk-move-to-trash] failed:', p, msg);
@@ -38,7 +36,6 @@ module.exports = function registerTrashIPC(ipcMain) {
                 }
             }
 
-            console.log(`[bulk-move-to-trash] done: moved=${results.moved.length} failed=${results.failed.length}`);
             return { success: true, ...results };
         } catch (e) {
             const msg = (e && e.message) || String(e);
