@@ -6,7 +6,10 @@
   --color-surface: #2a2a2a;
   --color-border: #3d3d3d;
   --color-text: #f5f5f5;
+  --color-text-secondary: #a0a0a0;
   --color-accent: #F59E0B;
+  --color-accent-hover: #D97706;
+  --color-on-accent: #422006;
   --metadata-dock-height: clamp(220px, 30vh, 360px);
   --metadata-dock-collapsed-inset: 2.75rem;
   --title-bar-height: 38px;
@@ -130,7 +133,7 @@ body {
 .file-input-label {
   background: var(--color-accent);
   border: none;
-  color: #000;
+  color: var(--color-on-accent);
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   cursor: pointer;
@@ -146,7 +149,7 @@ body {
 }
 
 .file-input-label:hover {
-  background: #D97706;
+  background: var(--color-accent-hover);
 }
 
 .toggle-button {
@@ -170,7 +173,7 @@ body {
 .toggle-button.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #000;
+  color: var(--color-on-accent);
 }
 
 .toggle-button:disabled {
@@ -1376,7 +1379,8 @@ body {
   .video-placeholder,
   .video-placeholder__sheen,
   .video-placeholder__spinner,
-  .debug-info {
+  .status-bar,
+  .status-bar__memory-fill {
     animation: none !important;
     transition: none !important;
   }
@@ -1391,7 +1395,7 @@ body {
   .video-grid.masonry-vertical { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .video-grid.masonry-horizontal .video-item { height: 150px; }
 
-  .debug-info { font-size: 0.6rem !important; padding: 0.2rem 0.5rem !important; }
+  .status-bar { font-size: 11px !important; padding: 0.2rem 0.5rem !important; }
   .video-placeholder { font-size: 0.8rem; padding: 0.5rem; }
   .error-indicator { font-size: 0.7rem; padding: 0.5rem; }
 
@@ -3070,4 +3074,313 @@ body {
 .duplicate-remove-btn:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.25) !important;
   border-color: rgba(239, 68, 68, 0.6) !important;
+}
+
+/* ============================================
+   Status bar (info strip below toolbar)
+   ============================================ */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  font-size: 12px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status-bar__group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.status-bar__divider {
+  width: 1px;
+  height: 12px;
+  background: var(--color-border);
+  flex: 0 0 auto;
+  transform: scaleX(0.5);
+}
+
+.status-bar__divider--push {
+  margin-left: auto;
+}
+
+.status-bar__sort {
+  color: var(--color-text-secondary);
+}
+
+.status-bar__sort span {
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.status-bar__stats {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.status-bar__stat {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-text-secondary);
+}
+
+.status-bar__count {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.status-bar__label {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.status-bar__memory {
+  cursor: default;
+}
+
+.status-bar__memory-bar {
+  width: 80px;
+  height: 4px;
+  background: color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.status-bar__memory-fill {
+  height: 100%;
+  width: 0;
+  background: var(--color-accent);
+  transition: width 0.25s ease, background-color 0.2s ease;
+}
+
+.status-bar__memory.is-near-limit .status-bar__memory-fill {
+  background: #ef4444;
+}
+
+/* ============================================
+   Toolbar responsive tiers (Phase B)
+   ============================================ */
+
+/* Tier 2 (medium): 1000–1399px — icon-only actions, narrowed sliders */
+.header--tier-medium .filters-button-label {
+  display: none;
+}
+
+.header--tier-medium .video-limit-control {
+  display: none;
+}
+
+.header--tier-medium .zoom-control input[type="range"] {
+  width: 56px;
+}
+
+.header--tier-medium .select-control {
+  width: 36px;
+  color: transparent;
+  padding-left: 0.3rem;
+  padding-right: 1.1rem;
+  background-position: right 0.3rem center;
+}
+
+.header--tier-medium .select-control option {
+  color: var(--color-text);
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--color-border);
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Tier 3 (narrow): <1000px — overflow menu */
+.header--tier-narrow .toolbar-collapsible {
+  display: none !important;
+}
+
+.header--tier-narrow .toolbar-group--collapses-narrow {
+  display: none;
+}
+
+.header--tier-narrow::after {
+  display: none;
+}
+
+.overflow-trigger {
+  margin-left: 0.25rem;
+}
+
+.overflow-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0.75rem;
+  width: min(320px, calc(100vw - 1.5rem));
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  background: rgba(28, 28, 28, 0.96);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  z-index: 130;
+  backdrop-filter: blur(12px);
+  white-space: normal;
+}
+
+.overflow-menu__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.overflow-menu__title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.overflow-menu__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.overflow-menu__pill {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.overflow-menu__pill:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.overflow-menu__pill.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 600;
+}
+
+.overflow-menu__pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.overflow-menu__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.overflow-menu__row-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.overflow-menu__row-button:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.overflow-menu__row-button.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.overflow-menu__row-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.overflow-menu__row-button--small {
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.overflow-menu__slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.overflow-menu__slider-row input[type="range"] {
+  min-width: 0;
+}
+
+.overflow-menu__slider-label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.overflow-menu__recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.overflow-menu__truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Compact form: drop icons; keep ambiguous labels (in view, playing); drop the
+   "rendered" stat entirely since total + in view convey the relevant context. */
+@media (max-width: 900px) {
+  .status-bar { gap: 0.5rem; padding: 0.3rem 0.55rem; }
+  .status-bar__sort svg,
+  .status-bar__stat svg { display: none; }
+  .status-bar__stat--rendered { display: none; }
+  .status-bar__stat--media .status-bar__label { display: none; }
+  .status-bar__stats { gap: 0.6rem; }
+  .status-bar__stat + .status-bar__stat::before {
+    content: "·";
+    margin-right: 0.5rem;
+    color: var(--color-text-secondary);
+  }
 }

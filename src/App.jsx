@@ -821,8 +821,8 @@ function App() {
     };
     const arrow =
       sortKey === SortKey.RANDOM ? "" : sortDir === "asc" ? "↑" : "↓";
-    const base = `Sorted by ${keyLabels[sortKey]}${arrow ? ` ${arrow}` : ""}`;
-    return groupByFolders ? `${base} • Grouped by folders` : base;
+    const base = `${keyLabels[sortKey]}${arrow ? ` ${arrow}` : ""}`;
+    return groupByFolders ? `${base} · Grouped by folders` : base;
   }, [sortKey, sortDir, groupByFolders]);
 
   // Simple toast used by actions layer
@@ -1772,13 +1772,9 @@ function App() {
             rendered={videoCollection.stats.rendered}
             playing={videoCollection.stats.playing}
             inView={visibleVideos.size}
-            activeWindow={activationWindow.ids.length}
-            activationTarget={activationWindow.target}
-            progressiveVisible={videoCollection.stats.progressiveVisible}
             memoryStatus={videoCollection.memoryStatus}
-            zoomLevel={zoomLevel}
-            getMinimumZoomLevel={getMinimumZoomLevel}
             sortStatus={sortStatus}
+            mediaFilter={mediaFilter}
           />
 
           {/* Home state: Recent Locations when nothing is loaded */}

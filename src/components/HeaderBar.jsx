@@ -1,8 +1,38 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import RecentLocationsMenu from "./RecentLocationsMenu";
 import { ZOOM_MAX_INDEX } from "../zoom/config.js";
 import { clampZoomIndex } from "../zoom/utils.js";
 import { SortKey } from "../sorting/sorting.js";
+
+const TIER_MEDIUM = 1400;
+const TIER_NARROW = 1000;
+
+function tierForWidth(w) {
+  if (w < TIER_NARROW) return "narrow";
+  if (w < TIER_MEDIUM) return "medium";
+  return "wide";
+}
+
+function useToolbarTier() {
+  const [tier, setTier] = useState(() =>
+    typeof window === "undefined" ? "wide" : tierForWidth(window.innerWidth)
+  );
+  useEffect(() => {
+    let frame = 0;
+    const onResize = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setTier(tierForWidth(window.innerWidth));
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+  return tier;
+}
 
 // --- Minimal inline SVG icons (fallback for environments without icon libs)
 const Icon = (props) => (
@@ -11,7 +41,7 @@ const Icon = (props) => (
     width="1em"
     height="1em"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="1.5"
     strokeLinecap="round"
     strokeLinejoin="round"
     fill="none"
@@ -134,6 +164,22 @@ const VideoIcon = (props) => (
   </Icon>
 );
 
+const MoreIcon = (props) => (
+  <Icon {...props}>
+    <circle cx="5" cy="12" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+  </Icon>
+);
+
+const SORT_OPTIONS = [
+  { value: "name-asc", label: "Name ↑" },
+  { value: "name-desc", label: "Name ↓" },
+  { value: "created-asc", label: "Created ↑" },
+  { value: "created-desc", label: "Created ↓" },
+  { value: "random", label: "Random" },
+];
+
 export default function HeaderBar({
   isLoadingFolder,
   handleFolderSelect,
@@ -175,20 +221,42 @@ export default function HeaderBar({
   onDuplicatesRemoveAll,
 }) {
   const isElectron = !!window.electronAPI?.isElectron;
+  const tier = useToolbarTier();
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowTriggerRef = useRef(null);
+  const overflowMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (tier !== "narrow" && overflowOpen) setOverflowOpen(false);
+  }, [tier, overflowOpen]);
+
+  useEffect(() => {
+    if (!overflowOpen) return undefined;
+    const onDocPointer = (event) => {
+      const t = event.target;
+      if (
+        overflowMenuRef.current?.contains(t) ||
+        overflowTriggerRef.current?.contains(t)
+      ) {
+        return;
+      }
+      setOverflowOpen(false);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") setOverflowOpen(false);
+    };
+    document.addEventListener("mousedown", onDocPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [overflowOpen]);
 
   const minZoomIndex = getMinimumZoomLevel();
 
-  const dividerStyle = {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    marginLeft: "1rem",
-    paddingLeft: "1rem",
-    borderLeft: "1px solid #ccc",
-  };
-
   return (
-    <div className="header">
+    <div className={`header header--tier-${tier}`}>
       <div className="nav-left">
         {isElectron ? (
           <button
@@ -224,11 +292,13 @@ export default function HeaderBar({
             onChange={toggleRecursive}
             disabled={isLoadingFolder}
           />
-          <span>Subfolders</span>
+          <span className="filters-button-label">Subfolders</span>
         </label>
 
         {hasOpenFolder && recentFolders.length > 0 && (
-          <RecentLocationsMenu items={recentFolders} onOpen={onRecentOpen} />
+          <div className="recent-folders-inline toolbar-collapsible">
+            <RecentLocationsMenu items={recentFolders} onOpen={onRecentOpen} />
+          </div>
         )}
       </div>
 
@@ -242,7 +312,7 @@ export default function HeaderBar({
           <TextIcon />
         </button>
 
-        <div style={dividerStyle}>
+        <div className="toolbar-group">
           <div className="media-filter-control" style={{ display: "flex", gap: "2px" }}>
             <button
               onClick={() => onMediaFilterChange?.("images")}
@@ -274,7 +344,7 @@ export default function HeaderBar({
           </div>
         </div>
 
-        <div style={dividerStyle}>
+        <div className="toolbar-group toolbar-group--collapses-narrow">
           <div className="video-limit-control" title="Limit rendered cards">
             <FilmIcon />
             <input
@@ -318,36 +388,38 @@ export default function HeaderBar({
           </div>
         </div>
 
-        <div style={dividerStyle}>
-          <SortIcon />
-          <select
-            className="select-control"
-            value={sortSelection}
-            onChange={(e) => onSortChange(e.target.value)}
-            disabled={isLoadingFolder}
-            title="Choose sort order"
-          >
-            <option value="name-asc">Name ↑</option>
-            <option value="name-desc">Name ↓</option>
-            <option
-              value="created-asc"
-              title="Falls back to Modified time if creation time is unavailable."
+        <div className="toolbar-group">
+          <div className="sort-control toolbar-collapsible">
+            <SortIcon />
+            <select
+              className="select-control"
+              value={sortSelection}
+              onChange={(e) => onSortChange(e.target.value)}
+              disabled={isLoadingFolder}
+              title="Choose sort order"
             >
-              Created ↑
-            </option>
-            <option
-              value="created-desc"
-              title="Falls back to Modified time if creation time is unavailable."
-            >
-              Created ↓
-            </option>
-            <option value="random">Random</option>
-          </select>
+              <option value="name-asc">Name ↑</option>
+              <option value="name-desc">Name ↓</option>
+              <option
+                value="created-asc"
+                title="Falls back to Modified time if creation time is unavailable."
+              >
+                Created ↑
+              </option>
+              <option
+                value="created-desc"
+                title="Falls back to Modified time if creation time is unavailable."
+              >
+                Created ↓
+              </option>
+              <option value="random">Random</option>
+            </select>
+          </div>
 
           <button
             onClick={onGroupByFoldersToggle}
             disabled={isLoadingFolder}
-            className={`toggle-button ${groupByFolders ? "active" : ""}`}
+            className={`toggle-button toolbar-collapsible ${groupByFolders ? "active" : ""}`}
             title="Group by folders"
           >
             <GridIcon />
@@ -357,7 +429,7 @@ export default function HeaderBar({
             <button
               onClick={onReshuffle}
               disabled={isLoadingFolder}
-              className="toggle-button"
+              className="toggle-button toolbar-collapsible"
               title="Reshuffle"
             >
               <ShuffleIcon />
@@ -391,7 +463,7 @@ export default function HeaderBar({
             <button
               onClick={onExportClick}
               disabled={isLoadingFolder || imageCount === 0}
-              className="toggle-button"
+              className="toggle-button toolbar-collapsible"
               title={imageCount > 0 ? `Export ${imageCount} images` : "No images to export"}
               type="button"
             >
@@ -417,7 +489,7 @@ export default function HeaderBar({
             <button
               onClick={onDuplicatesClick}
               disabled={isLoadingFolder || !hasOpenFolder}
-              className="toggle-button"
+              className="toggle-button toolbar-collapsible"
               title="Find duplicate images"
               type="button"
             >
@@ -459,8 +531,177 @@ export default function HeaderBar({
               <GearIcon />
             </button>
           )}
+
+          {tier === "narrow" && (
+            <button
+              ref={overflowTriggerRef}
+              type="button"
+              className={`toggle-button overflow-trigger${
+                overflowOpen ? " active" : ""
+              }`}
+              onClick={() => setOverflowOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={overflowOpen}
+              title="More options"
+            >
+              <MoreIcon />
+            </button>
+          )}
         </div>
       </div>
+      {tier === "narrow" && overflowOpen && (
+        <div
+          ref={overflowMenuRef}
+          className="overflow-menu"
+          role="menu"
+          aria-label="More toolbar options"
+        >
+                  <div className="overflow-menu__section">
+                    <div className="overflow-menu__title">Sort</div>
+                    <div className="overflow-menu__pills">
+                      {SORT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className={`overflow-menu__pill${
+                            sortSelection === opt.value ? " is-active" : ""
+                          }`}
+                          onClick={() => onSortChange(opt.value)}
+                          disabled={isLoadingFolder}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="overflow-menu__row">
+                      <button
+                        type="button"
+                        className={`overflow-menu__row-button${
+                          groupByFolders ? " is-active" : ""
+                        }`}
+                        onClick={onGroupByFoldersToggle}
+                        disabled={isLoadingFolder}
+                      >
+                        <GridIcon />
+                        <span>Group by folders</span>
+                      </button>
+                      {sortKey === SortKey.RANDOM && (
+                        <button
+                          type="button"
+                          className="overflow-menu__row-button"
+                          onClick={onReshuffle}
+                          disabled={isLoadingFolder}
+                        >
+                          <ShuffleIcon />
+                          <span>Reshuffle</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="overflow-menu__section">
+                    <div className="overflow-menu__title">View</div>
+                    <div className="overflow-menu__slider-row">
+                      <ZoomInIcon />
+                      <input
+                        type="range"
+                        min={minZoomIndex}
+                        max={ZOOM_MAX_INDEX}
+                        value={zoomLevel}
+                        step="1"
+                        onChange={(e) =>
+                          handleZoomChangeSafe(
+                            clampZoomIndex(parseInt(e.target.value, 10))
+                          )
+                        }
+                        disabled={isLoadingFolder}
+                        aria-label="Zoom level"
+                        style={{ flex: 1, accentColor: "var(--color-accent)" }}
+                      />
+                      <span className="overflow-menu__slider-label">Zoom</span>
+                    </div>
+                    <div className="overflow-menu__slider-row">
+                      <FilmIcon />
+                      <input
+                        type="range"
+                        min="0"
+                        max={renderLimitMaxStep}
+                        value={renderLimitStep}
+                        step="1"
+                        onChange={(e) =>
+                          handleRenderLimitChange(
+                            parseInt(e.target.value, 10)
+                          )
+                        }
+                        disabled={isLoadingFolder}
+                        aria-label="Rendered cards limit"
+                        style={{ flex: 1, accentColor: "var(--color-accent)" }}
+                      />
+                      <span className="overflow-menu__slider-label">
+                        {renderLimitLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isElectron && (
+                    <div className="overflow-menu__section">
+                      <div className="overflow-menu__title">Actions</div>
+                      <button
+                        type="button"
+                        className="overflow-menu__row-button"
+                        onClick={() => {
+                          onExportClick?.();
+                          setOverflowOpen(false);
+                        }}
+                        disabled={isLoadingFolder || imageCount === 0}
+                      >
+                        <ExportIcon />
+                        <span>
+                          Export
+                          {imageCount > 0 ? ` (${imageCount})` : ""}
+                        </span>
+                      </button>
+                      {!duplicateMode && (
+                        <button
+                          type="button"
+                          className="overflow-menu__row-button"
+                          onClick={() => {
+                            onDuplicatesClick?.();
+                            setOverflowOpen(false);
+                          }}
+                          disabled={isLoadingFolder || !hasOpenFolder}
+                        >
+                          <CopyIcon />
+                          <span>Find duplicates</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+          {hasOpenFolder && recentFolders.length > 0 && (
+            <div className="overflow-menu__section">
+              <div className="overflow-menu__title">Recent folders</div>
+              <div className="overflow-menu__recent-list">
+                {recentFolders.slice(0, 8).map((it) => (
+                  <button
+                    key={it.path}
+                    type="button"
+                    className="overflow-menu__row-button overflow-menu__row-button--small"
+                    onClick={() => {
+                      onRecentOpen?.(it.path);
+                      setOverflowOpen(false);
+                    }}
+                    title={it.path}
+                  >
+                    <FolderIcon />
+                    <span className="overflow-menu__truncate">{it.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
