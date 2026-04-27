@@ -1,0 +1,327 @@
+.rating-mode {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rating-mode__topbar {
+  height: 28px;
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: rgba(0, 0, 0, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.rating-mode__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-secondary);
+}
+
+.rating-mode__progress-text {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rating-mode__progress-bar {
+  width: 100px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.rating-mode__progress-bar-fill {
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 120ms ease-out;
+}
+
+.rating-mode__topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-mode__toggle {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 80ms ease, border-color 80ms ease, background 80ms ease;
+}
+
+.rating-mode__toggle:hover {
+  color: var(--color-text);
+}
+
+.rating-mode__toggle.is-active {
+  color: var(--color-accent);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.rating-mode__close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.rating-mode__close:hover {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rating-mode__image-area {
+  flex: 1 1 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.rating-mode__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  -webkit-user-drag: none;
+}
+
+.rating-mode__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease;
+  z-index: 2;
+}
+
+.rating-mode__image-area:hover .rating-mode__nav {
+  opacity: 1;
+}
+
+.rating-mode__nav:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.rating-mode__nav--prev {
+  left: 16px;
+}
+
+.rating-mode__nav--next {
+  right: 16px;
+}
+
+.rating-mode__nav:disabled {
+  opacity: 0;
+  cursor: default;
+  pointer-events: none;
+}
+
+.rating-mode__overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 32px 16px 16px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+
+.rating-mode__image-area:hover .rating-mode__overlay,
+.rating-mode__overlay.is-visible {
+  opacity: 1;
+}
+
+.rating-mode__stars {
+  display: flex;
+  gap: 4px;
+}
+
+.rating-mode__star {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  pointer-events: auto;
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 80ms ease, transform 80ms ease;
+}
+
+.rating-mode__star:hover {
+  color: var(--color-accent);
+  transform: scale(1.1);
+}
+
+.rating-mode__star.is-filled {
+  color: var(--color-accent);
+}
+
+.rating-mode__stars.is-pulsing .rating-mode__star.is-filled {
+  animation: rating-mode-pulse 200ms ease-out;
+}
+
+@keyframes rating-mode-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7)); }
+  100% { transform: scale(1); }
+}
+
+.rating-mode__filename {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 60%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rating-mode__filmstrip {
+  flex: 0 0 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.rating-mode__filmstrip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.rating-mode__filmstrip::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.rating-mode__thumb {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: #111;
+  opacity: 0.35;
+  transition: opacity 100ms ease, border-color 100ms ease;
+  padding: 0;
+}
+
+.rating-mode__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rating-mode__thumb.is-rated {
+  opacity: 0.55;
+}
+
+.rating-mode__thumb.is-current {
+  opacity: 1;
+  border-color: var(--color-accent);
+}
+
+.rating-mode__thumb-badge {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 8px;
+  font-weight: 600;
+  padding: 0 3px;
+  border-radius: 2px;
+  line-height: 12px;
+  pointer-events: none;
+}
+
+.rating-mode__done {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #000;
+  color: var(--color-text);
+}
+
+.rating-mode__done-message {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+}
+
+.rating-mode__done-button {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rating-mode__done-button:hover {
+  background: var(--color-accent-hover);
+}
+
+.rating-mode__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

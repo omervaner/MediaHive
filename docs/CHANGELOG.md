@@ -4,6 +4,61 @@
 
 ---
 
+### v0.8.0 - Rating Mode ✅ COMPLETE (2026-04-27)
+
+A dedicated full-screen mode for rapidly rating images. Designed for LoRA dataset curation where you need to triage hundreds or thousands of images quickly.
+
+**Entry/exit:**
+- Press `R` from the grid, or click the new "Rate" button in the toolbar
+- `Escape` exits back to the grid with all ratings persisted
+- Defaults to "Unrated only" — toggle in the top bar switches to "All images" for re-rating
+
+**Queue:**
+- Built from the current grid view minus the rating filter (other filters honored)
+- Images only (videos skipped — playback in rating mode is out of scope for v0.8)
+- Sorted by file path for stable, predictable order
+
+**Layout:**
+- Black background, full window, three elements: thin top bar (28px), image area (fits-to-window), bottom filmstrip (44px)
+- Hover overlay reveals five star icons + filename with a fade gradient
+- Stars pulse amber for 200ms after a keyboard rating
+- Edge nav arrows on hover (prev/next)
+
+**Filmstrip:**
+- 36×36 thumbnails, current image gets amber border
+- Rated thumbs show ★N badge + 55% opacity; unrated upcoming at 35%
+- Auto-scrolls to keep current centered; click to jump
+
+**Keyboard shortcuts:**
+- `1`-`5`: rate + auto-advance to next unrated
+- `0`: clear rating (stay on image)
+- `S`: skip (advance without changing rating)
+- `←` / `→`: prev / next image
+- `Cmd/Ctrl+Z`: undo last rating + jump back to that image
+- `Escape`: exit
+
+**Persistence:**
+- Ratings saved to DB immediately via existing `metadata:set-rating` IPC (no batch save, no apply button)
+- Toast notifications suppressed in rating mode to avoid spam during rapid rating
+- Mid-session exit → all ratings already persisted
+
+**Completion:**
+- When no unrated images remain, shows "All done — N images rated" with a Back-to-grid button
+- No auto-exit — user stays in control
+
+**Files created:**
+- `src/components/RatingMode/RatingMode.jsx` — orchestrator: queue, undo stack, keyboard, IPC dispatch, completion screen
+- `src/components/RatingMode/RatingImage.jsx` — image area + hover overlay + edge arrows
+- `src/components/RatingMode/RatingFilmstrip.jsx` — thumbnail strip with auto-centering and badges
+- `src/components/RatingMode/RatingMode.css` — black bg, amber accents, layered z-index
+
+**Files modified:**
+- `src/app/hooks/useFilterState.js` — extracted `applyFilters(videos, { skipRating })`, exposed `filteredVideosIgnoringRating`
+- `src/App.jsx` — `isRatingMode` state, `ratingQueue` derivation, `applyRatingSilent` callback (silent IPC + state patch), `R` key handler, render branch, HeaderBar wiring
+- `src/components/HeaderBar.jsx` — `StarIcon`, "Rate" button, `onRatingModeClick` + `ratingModeAvailable` props
+
+---
+
 ### v0.7.0 - Phase 4: QOL Features ✅ COMPLETE (2026-01-01)
 
 Quality of life improvements for file management and selection.

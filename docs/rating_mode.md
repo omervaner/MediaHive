@@ -1,5 +1,7 @@
 # MediaHive — Rating mode spec
 
+**Status:** ✅ Implemented in v0.8.0
+
 A dedicated full-screen mode for rapidly rating images in a folder. Designed for LoRA dataset curation where you need to triage hundreds or thousands of images quickly.
 
 ---

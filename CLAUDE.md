@@ -23,13 +23,25 @@ npm test               # Run tests
 
 ---
 
-## Current Version: 0.7.0
+## Current Version: 0.8.0
 
 See `docs/CHANGELOG.md` for detailed history of completed features.
 
 ---
 
-## Current Work: Duplicate Finder ✅ COMPLETE
+## Current Work: Rating Mode ✅ COMPLETE
+
+Full-screen mode for rapidly rating images (1-5 keys, auto-advance, undo, filmstrip). Spec: `docs/rating_mode.md`.
+
+**Files:**
+- `src/components/RatingMode/{RatingMode,RatingImage,RatingFilmstrip}.jsx` + `RatingMode.css`
+- `src/app/hooks/useFilterState.js` — `filteredVideosIgnoringRating` memo
+- `src/App.jsx` — `isRatingMode` state, `ratingQueue`, `applyRatingSilent`, `R` key handler
+- `src/components/HeaderBar.jsx` — Rate button + StarIcon
+
+---
+
+## Previous Work: Duplicate Finder ✅ COMPLETE
 
 ### Plan
 

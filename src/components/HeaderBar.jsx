@@ -150,6 +150,12 @@ const ImageIcon = (props) => (
   </Icon>
 );
 
+const StarIcon = (props) => (
+  <Icon {...props}>
+    <polygon points="12 2 15 9 22 9.5 17 14.5 18.5 21.5 12 18 5.5 21.5 7 14.5 2 9.5 9 9 12 2" />
+  </Icon>
+);
+
 const CopyIcon = (props) => (
   <Icon {...props}>
     <rect x="9" y="9" width="13" height="13" rx="2" />
@@ -219,6 +225,8 @@ export default function HeaderBar({
   onDuplicatesClick,
   onDuplicatesExit,
   onDuplicatesRemoveAll,
+  onRatingModeClick,
+  ratingModeAvailable = false,
 }) {
   const isElectron = !!window.electronAPI?.isElectron;
   const tier = useToolbarTier();
@@ -482,6 +490,19 @@ export default function HeaderBar({
             >
               <BrainIcon />
               <span className="filters-button-label">Caption</span>
+            </button>
+          )}
+
+          {!duplicateMode && (
+            <button
+              onClick={onRatingModeClick}
+              disabled={isLoadingFolder || !ratingModeAvailable}
+              className="toggle-button toolbar-collapsible"
+              title="Rate images (R)"
+              type="button"
+            >
+              <StarIcon />
+              <span className="filters-button-label">Rate</span>
             </button>
           )}
 

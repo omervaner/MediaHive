@@ -23,6 +23,7 @@ import OllamaSetupDialog from "./components/OllamaSetupDialog";
 import SettingsDialog from "./components/SettingsDialog";
 import BatchCaptionDialog from "./components/BatchCaptionDialog";
 import MoveDialog from "./components/MoveDialog";
+import RatingMode from "./components/RatingMode/RatingMode";
 
 import { useFullScreenModal } from "./hooks/useFullScreenModal";
 import { useVideoCollection } from "./hooks/video-collection";
@@ -166,6 +167,9 @@ function App() {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isBatchCaptionOpen, setBatchCaptionOpen] = useState(false);
   const [moveDialogState, setMoveDialogState] = useState({ open: false, mode: "copy" });
+
+  // Rating mode state
+  const [isRatingMode, setIsRatingMode] = useState(false);
 
   // Duplicate finder state
   const [duplicateMode, setDuplicateMode] = useState(false);
@@ -368,6 +372,7 @@ function App() {
     updateFilters,
     resetFilters,
     filteredVideos,
+    filteredVideosIgnoringRating,
     filteredVideoIds,
     filtersActiveCount,
     ratingSummary,
@@ -867,6 +872,32 @@ function App() {
   });
 
   refreshTagListRef.current = refreshTagList;
+
+  const applyRatingSilent = useCallback(
+    async (fileId, rating) => {
+      if (!fileId) return;
+      const api = window.electronAPI?.metadata;
+      if (!api?.setRating) return;
+      try {
+        const result = await api.setRating([fileId], rating);
+        if (result?.updates) applyMetadataPatch(result.updates);
+      } catch (error) {
+        console.error("Failed to update rating:", error);
+      }
+    },
+    [applyMetadataPatch]
+  );
+
+  const ratingQueue = useMemo(() => {
+    const list = (filteredVideosIgnoringRating || []).filter(
+      (v) => v?.mediaType === "image"
+    );
+    return [...list].sort((a, b) => {
+      const ap = (a?.fullPath || a?.name || "").toString();
+      const bp = (b?.fullPath || b?.name || "").toString();
+      return ap.localeCompare(bp);
+    });
+  }, [filteredVideosIgnoringRating]);
 
   useEffect(() => {
     refreshTagList();
@@ -1462,6 +1493,21 @@ function App() {
     return () => document.removeEventListener("keydown", onKey);
   }, [isLoadingFolder, cancelFolderLoad]);
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (isRatingMode) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
+      if (e.key !== "r" && e.key !== "R") return;
+      if (ratingQueue.length === 0) return;
+      e.preventDefault();
+      setIsRatingMode(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isRatingMode, ratingQueue.length]);
+
   // cleanup pass from videoCollection
   // drive the effect by stable scalars; apply deletions, not replacement; de-bounce one tick
   const maxLoaded = videoCollection.limits?.maxLoaded ?? 0;                 
@@ -1597,6 +1643,8 @@ function App() {
             onDuplicatesClick={handleDuplicatesFind}
             onDuplicatesExit={handleDuplicatesExit}
             onDuplicatesRemoveAll={handleDuplicatesRemoveAll}
+            onRatingModeClick={() => setIsRatingMode(true)}
+            ratingModeAvailable={ratingQueue.length > 0}
           />
 
           {isFiltersOpen && (
@@ -1909,6 +1957,14 @@ function App() {
               onNavigate={navigateFullScreen}
               showFilenames={showFilenames}
               gridRef={gridRef}
+            />
+          )}
+
+          {isRatingMode && (
+            <RatingMode
+              videos={ratingQueue}
+              onApplyRating={applyRatingSilent}
+              onExit={() => setIsRatingMode(false)}
             />
           )}
 

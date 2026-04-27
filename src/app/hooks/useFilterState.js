@@ -50,7 +50,8 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
     setFilters(createDefaultFilters());
   }, []);
 
-  const filteredVideos = useMemo(() => {
+  const applyFilters = (videoList, opts = {}) => {
+    const { skipRating = false } = opts;
     const includeTags = filters.includeTags ?? [];
     const excludeTags = filters.excludeTags ?? [];
     const minRating = sanitizeMinRating(filters.minRating);
@@ -66,20 +67,22 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
       ? new Set(excludeTags.map((tag) => tag.toLowerCase()))
       : null;
 
+    const ratingFilterActive =
+      !skipRating && (minRating !== null || exactRating !== null);
+
     const hasAnyFilter =
       includeSet ||
       excludeSet ||
-      minRating !== null ||
-      exactRating !== null ||
+      ratingFilterActive ||
       minResolution !== null ||
       aspectRatio !== null ||
       screenshotFilter !== null;
 
     if (!hasAnyFilter) {
-      return videos;
+      return videoList;
     }
 
-    return videos.filter((video) => {
+    return videoList.filter((video) => {
       const tagList = Array.isArray(video.tags)
         ? video.tags.map((tag) => (tag ?? "").toString().trim().toLowerCase()).filter(Boolean)
         : [];
@@ -100,32 +103,41 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
         }
       }
 
-      const ratingValue = Number.isFinite(video.rating) ? Math.round(video.rating) : null;
+      if (!skipRating) {
+        const ratingValue = Number.isFinite(video.rating) ? Math.round(video.rating) : null;
 
-      if (exactRating !== null) {
-        if ((ratingValue ?? null) !== exactRating) return false;
-      } else if (minRating !== null) {
-        if ((ratingValue ?? 0) < minRating) return false;
+        if (exactRating !== null) {
+          if ((ratingValue ?? null) !== exactRating) return false;
+        } else if (minRating !== null) {
+          if ((ratingValue ?? 0) < minRating) return false;
+        }
       }
 
-      // Resolution filter
       if (!matchesResolution(video, minResolution)) {
         return false;
       }
 
-      // Aspect ratio filter
       if (!matchesAspectRatio(video, aspectRatio)) {
         return false;
       }
 
-      // Screenshot filter
       if (!matchesScreenshotFilter(video, screenshotFilter)) {
         return false;
       }
 
       return true;
     });
-  }, [videos, filters]);
+  };
+
+  const filteredVideos = useMemo(
+    () => applyFilters(videos),
+    [videos, filters]
+  );
+
+  const filteredVideosIgnoringRating = useMemo(
+    () => applyFilters(videos, { skipRating: true }),
+    [videos, filters]
+  );
 
   const filteredVideoIds = useMemo(
     () => new Set(filteredVideos.map((video) => video.id)),
@@ -226,6 +238,7 @@ export function useFilterState({ videos, filtersButtonRef, filtersPopoverRef }) 
     updateFilters,
     resetFilters,
     filteredVideos,
+    filteredVideosIgnoringRating,
     filteredVideoIds,
     filtersActiveCount,
     ratingSummary,
